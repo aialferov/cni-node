@@ -4,7 +4,7 @@ metadata:
   name: multus-cni-node-config
   namespace: kube-system
 data:
-  05-multus-cni.conflist: |
+  05-multus-cni.conf: |
     {"name": "multus-cni",
      "cniVersion":"0.1.0",
      "type": "multus-cni",
@@ -42,7 +42,7 @@ spec:
           mountPath: /host/opt/cni/bin
       - name: config-install
         image: openvnf/cni-node
-        args: ["install", "config", "05-multus-cni.conflist"]
+        args: ["install", "config", "05-multus-cni.conf"]
         volumeMounts:
         - name: cnicfg
           mountPath: /host/etc/cni/net.d
