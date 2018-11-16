@@ -1,0 +1,63 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: multus-cni-node-config
+  namespace: kube-system
+data:
+  05-multus-cni.conflist: |
+    {"name": "multus-cni",
+     "cniVersion":"0.1.0",
+     "type": "multus-cni",
+     "kubeconfig": "/etc/kubernetes/kubelet.conf",
+     "delegates": [
+       __10-calico.conflist__
+     ]
+    }
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: multus-cni-node
+  namespace: kube-system
+  labels:
+    app: multus-cni-node
+spec:
+  selector:
+    matchLabels:
+      app: multus-cni-node
+  template:
+    metadata:
+      labels:
+        app: multus-cni-node
+    spec:
+      tolerations:
+      - key: node.kubernetes.io/not-ready
+        effect: NoSchedule
+      initContainers:
+      - name: plugins-install
+        image: openvnf/cni-node
+        args: ["install", "plugins", "multus-cni", "macvlan"]
+        volumeMounts:
+        - name: cnibin
+          mountPath: /host/opt/cni/bin
+      - name: config-install
+        image: openvnf/cni-node
+        args: ["install", "config", "05-multus-cni.conflist"]
+        volumeMounts:
+        - name: cnicfg
+          mountPath: /host/etc/cni/net.d
+        - name: multus-cni-node-config
+          mountPath: /etc/cni/net.d
+      containers:
+      - name: pause
+        image: k8s.gcr.io/pause
+      volumes:
+      - name: cnibin
+        hostPath:
+          path: /opt/cni/bin
+      - name: cnicfg
+        hostPath:
+          path: /etc/cni/net.d
+      - name: multus-cni-node-config
+        configMap:
+          name: multus-cni-node-config

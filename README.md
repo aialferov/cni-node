@@ -106,80 +106,26 @@ Installing CNI configuration from 05-ipvlan.conf...
 
 ## Kubernetes Example
 
-The following example uses [DaemonSet] to install Multus and Macvlan CNI plugins
-on each Kubernetes node and create a Multus CNI configuration describing
-delegation to the existing Calico configuration (assuming
-"/etc/cni/net.d/10-calico.conflist" exists).
+The example uses [DaemonSet] to install Multus and Macvlan CNI plugins on each
+Kubernetes node and configure Multus CNI the way describing delegation to the
+existing Calico configuration (assuming "/etc/cni/net.d/10-calico.conflist"
+exists).
+
+Use Multus CNI Node [Manifest] to create the example workloads:
 
 ```
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: multus-cni-node-config
-  namespace: kube-system
-data:
-  05-multus-cni.conflist: |
-    {"name": "multus-cni",
-     "cniVersion":"0.1.0",
-     "type": "multus-cni",
-     "kubeconfig": "/etc/kubernetes/kubelet.conf",
-     "delegates": [
-       __10-calico.conflist__
-     ]
-    }
----
-apiVersion: extensions/v1beta1
-kind: DaemonSet
-metadata:
-  name: multus-cni-node
-  namespace: kube-system
-  labels:
-    app: multus-cni-node
-spec:
-  selector:
-    matchLabels:
-      app: multus-cni-node
-  template:
-    metadata:
-      labels:
-        app: multus-cni-node
-    spec:
-      tolerations:
-      - key: node.kubernetes.io/not-ready
-        effect: NoSchedule
-      initContainers:
-      - name: plugins-install
-        image: openvnf/cni-node
-        args: ["install", "plugins", "multus-cni", "macvlan"]
-        volumeMounts:
-        - name: cnibin
-          mountPath: /host/opt/cni/bin
-      - name: config-install
-        image: openvnf/cni-node
-        args: ["install", "config", "05-multus-cni.conflist"]
-        volumeMounts:
-        - name: cnicfg
-          mountPath: /host/etc/cni/net.d
-        - name: multus-cni-node-config
-          mountPath: /etc/cni/net.d
-      containers:
-      - name: pause
-        image: k8s.gcr.io/pause
-      volumes:
-      - name: cnibin
-        hostPath:
-          path: /opt/cni/bin
-      - name: cnicfg
-        hostPath:
-          path: /etc/cni/net.d
-      - name: multus-cni-node-config
-        configMap:
-          name: multus-cni-node-config
+$ kubectl create -f https://raw.githubusercontent.com/openvnf/cni-node/master/examples/multus-cni-node.yaml
 ```
 
 After installation pods of the daemonset keep running in a "pause" container
 and can be used to apply configuration changes. To change configuration edit
-the ConfigMap and restart the "multus-cni-node" pods, for example this way:
+the ConfigMap:
+
+```
+$ kubectl -n kube-system edit configmap multus-cni-node-config
+```
+
+To apply the changes delete the "multus-cni-node" pods to make them restart:
 
 ```
 $ kubectl -n kube-system delete po -l app=multus-cni-node
@@ -209,6 +155,7 @@ limitations under the License.
 <!-- Links -->
 
 [Docker]: https://docs.docker.com
+[Manifest]: examples/multus-cni-node.yaml
 [DaemonSet]: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset
 [Kubernetes]: https://kubernetes.io
 [Multus CNI]: https://github.com/intel/multus-cni
