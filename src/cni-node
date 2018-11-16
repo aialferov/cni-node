@@ -1,0 +1,82 @@
+#!/bin/sh
+
+set -e
+
+USAGE=$(cat <<EOF
+Usage: cni-node <Command> [Args]
+
+Commands
+    install plugins <Plugins>  install specified CNI plugins
+    install config <Template>  install CNI config from the specified template
+    list                       list available CNI plugins
+    version                    show version
+EOF
+)
+
+function main {
+    case "$1 $2" in
+        "install plugins"|\
+        "install config")
+            local ACTION="$1"
+            local TARGET="$2"
+            shift 2
+
+            "${ACTION}_${TARGET}" "$@"
+        ;;
+        "list ")
+            ls -1 /opt/cni/bin
+        ;;
+        "version ")
+            cat /version
+        ;;
+        *) usage ;;
+    esac
+}
+
+function install_plugins {
+    local PLUGINS=$*
+
+    for PLUGIN in ${PLUGINS}; do
+        echo "Installing CNI plugin ${PLUGIN}..."
+        install "/opt/cni/bin/${PLUGIN}" "/host/opt/cni/bin/${PLUGIN}"
+    done
+    echo "Done."
+}
+
+function install_config {
+    local TEMPLATE="/etc/cni/net.d/$1"
+
+    echo "Installing CNI configuration from $(basename "${TEMPLATE}")..."
+
+    local SED_ARGS; SED_ARGS="$(sed_args "${TEMPLATE}")"
+    if [ -n "${SED_ARGS}" ]; then
+        sed ${SED_ARGS} "${TEMPLATE}" | tee "/host/${TEMPLATE}" > /dev/null
+    else
+        cp "${TEMPLATE}" "/host/${TEMPLATE}"
+    fi
+
+    echo "### ${TEMPLATE} ###"
+    cat "/host/${TEMPLATE}"
+    echo "###"
+}
+
+function sed_args {
+    local TEMPLATE="$1"
+
+    for POINTER in $(template_pointers "${TEMPLATE}"); do
+        printf %b " -e /__${POINTER}__/r/host/etc/cni/net.d/${POINTER}" \
+                  " -e /__${POINTER}__/d"
+    done
+}
+
+function template_pointers {
+    local TEMPLATE="$1"
+    grep -o "__\\(.*\\)__" "${TEMPLATE}" | sed "s/__\\(.*\\)__/\\1/"
+}
+
+function usage {
+    >&2 echo "${USAGE}"
+    exit 2
+}
+
+main "$@"

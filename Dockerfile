@@ -1,31 +1,28 @@
-# -- build environment --
+FROM alpine
 
-ARG 	PLUGIN_DIR=/opt/cni-plugins
+ARG PROJECT=
+ARG VERSION=
+ARG GIT_SHA=
 
-FROM golang:alpine AS build-env
+LABEL PROJECT="${PROJECT}"
 
-ARG	PLUGIN_DIR
-RUN 	apk update && apk add git bash curl
-RUN	mkdir -p $PLUGIN_DIR
-ENV	CGO_ENABLED=0
-RUN 	git clone https://github.com/Intel-Corp/multus-cni.git && \
-	cd multus-cni && ./build && cp bin/multus $PLUGIN_DIR && cd ..
-RUN	curl -sL https://github.com/containernetworking/plugins/releases/download/v0.7.0/cni-plugins-amd64-v0.7.0.tgz | tar xzvC $PLUGIN_DIR
+ARG MULTUS_CNI_VERSION=v3.1
+ARG CNI_PLUGINS_VERSION=v0.7.4
 
+ARG MULTUS_CNI_URL=\
+https://github.com/intel/multus-cni/releases/download/\
+${MULTUS_CNI_VERSION}/multus-cni_${MULTUS_CNI_VERSION}_linux_amd64.tar.gz
 
-# -- runtime container --
+ARG CNI_PLUGINS_URL=\
+https://github.com/containernetworking/plugins/releases/download/\
+${CNI_PLUGINS_VERSION}/cni-plugins-amd64-${CNI_PLUGINS_VERSION}.tgz
 
-FROM alpine:3.7
+RUN mkdir -p /opt/cni/bin && \
+    wget -O- "${CNI_PLUGINS_URL}" | tar -C /opt/cni/bin -xz && \
+    wget -O- "${MULTUS_CNI_URL}" | tar -C /opt/cni/bin -xz --strip 1 && \
+    rm /opt/cni/bin/README.md && \
+    rm /opt/cni/bin/LICENSE && \
+    echo "${VERSION} (git-${GIT_SHA})" > /version
 
-ARG	PLUGIN_DIR
-ENV	PLUGIN_DIR=$PLUGIN_DIR
-ENV	INSTALL_DIR=/opt/cni/bin/
-ENV	CONF_DIR=/etc/cni/net.d/
-ENV	CONF_TEMPLATE_DIR=/config/
-
-RUN	apk update && apk add gettext
-
-RUN	mkdir -p $CONF_TEMPLATE_DIR
-COPY	--from=build-env $PLUGIN_DIR/* $PLUGIN_DIR/
-COPY	install.sh /
-ENTRYPOINT	["sh", "/install.sh"]
+COPY src /bin
+ENTRYPOINT ["/bin/cni-node"]
