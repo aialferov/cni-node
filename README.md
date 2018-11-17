@@ -16,18 +16,18 @@ Run without arguments to see usage:
 $ docker run --rm openvnf/cni-node
 ```
 
-Install CNI plugins:
+Print list of available CNI plugins:
+
+```
+$ docker run --rm openvnf/cni-node list
+```
+
+Install plugins:
 
 ```
 $ docker run --rm \
     -v <Dest>:/host/opt/cni/bin \
     openvnf/cni-node install plugins <Plugins>
-```
-
-Print list of available plugins:
-
-```
-$ docker run --rm openvnf/cni-node list
 ```
 
 Install CNI configuration from a template:
