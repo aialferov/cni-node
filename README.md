@@ -22,6 +22,8 @@ Print list of available CNI plugins:
 $ docker run --rm openvnf/cni-node list
 ```
 
+### Install CNI
+
 Install plugins:
 
 ```
@@ -55,8 +57,15 @@ content of this file will be inserted instead of the pointer.
 To install plugins and configuration in one run specify "--plugins" and
 "--config" options simultaneously.
 
+### Uninstall CNI
+
 To uninstall plugins and configuration replace "install" with "uninstall" in
 the instructions above.
+
+### Wait
+
+To wait for SIGING or SIGTERM signal after install or uninstall action add
+"--wait" option.
 
 ## Docker Example
 
@@ -115,7 +124,7 @@ Use Multus CNI Node [Manifest] to create the example workloads:
 $ kubectl create -f https://raw.githubusercontent.com/openvnf/cni-node/master/examples/multus-cni-node.yaml
 ```
 
-After installation pods of the daemonset keep running in a "pause" container
+After installation pods of the daemonset keep running (using "--wait" option)
 and can be used to apply configuration changes. To change configuration edit
 the ConfigMap:
 

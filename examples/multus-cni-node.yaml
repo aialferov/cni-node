@@ -33,13 +33,14 @@ spec:
       tolerations:
       - key: node.kubernetes.io/not-ready
         effect: NoSchedule
-      initContainers:
-      - name: install
+      containers:
+      - name: cni-node
         image: openvnf/cni-node
         args:
         - install
         - --plugins=multus-cni,macvlan
         - --config=05-multus-cni.conf
+        - --wait
         volumeMounts:
         - name: cnibin
           mountPath: /host/opt/cni/bin
@@ -47,9 +48,6 @@ spec:
           mountPath: /host/etc/cni/net.d
         - name: multus-cni-node-config
           mountPath: /etc/cni/net.d
-      containers:
-      - name: pause
-        image: k8s.gcr.io/pause
       volumes:
       - name: cnibin
         hostPath:

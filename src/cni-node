@@ -15,6 +15,7 @@ Commands
 Options
     --plugins=<Plugins>  Comma separated CNI plugins
     --config=<Template>  CNI configuration template
+    --wait               Wait until SIGTERM or SIGINT after install/uninstall
 EOF
 )
 
@@ -22,17 +23,20 @@ function main {
     case "$1" in
         install|uninstall)
             local ACTION="$1"
+            local WAIT=false
             shift
             for ARG in "$@"; do
                 case "${ARG}" in
                     --plugins=*) local PLUGINS="${ARG#*=}"; shift ;;
                     --config=*) local CONFIG="${ARG#*=}"; shift ;;
+                    --wait) WAIT=true; shift ;;
                     *=*) >&2 echo "Unknown argument: ${ARG%=*}"; exit 2 ;;
                     *) >&2 echo "Unknown argument: ${ARG}"; exit 2 ;;
                 esac
             done
             [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS/,/ }"
             [ -n "${CONFIG}" ] && "${ACTION}_config" "${CONFIG}";
+            "${WAIT}" && wait
         ;;
         list) ls -1 /opt/cni/bin ;;
         version) cat /version ;;
@@ -94,6 +98,18 @@ function sed_args {
 function template_pointers {
     local TEMPLATE="$1"
     grep -o "__\\(.*\\)__" "${TEMPLATE}" | sed "s/__\\(.*\\)__/\\1/"
+}
+
+function wait {
+    echo "Waiting for SIGTERM or SIGINT..."
+    trap stop SIGTERM SIGINT
+    while :; do
+        sleep 1
+    done
+}
+function stop {
+    echo "Done."
+    exit 0
 }
 
 function usage {
