@@ -1,5 +1,5 @@
 PROJECT = cni-node
-VERSION = 0.1.0
+VERSION = 0.2.0
 
 REGISTRY = docker.io
 USER = openvnf

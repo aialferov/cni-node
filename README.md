@@ -52,6 +52,9 @@ __10-calico.conflist__
 and file with such a name exists in the "Dest Dir", then content of this file
 will be inserted insted of the pointer.
 
+To uninstall CNI plugins and configuration replace "install" with "uninstall" in
+the instructions above.
+
 ## Docker Example
 
 Let's install Ipvlan CNI plugin and its configuration on a node.

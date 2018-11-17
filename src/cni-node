@@ -6,17 +6,23 @@ USAGE=$(cat <<EOF
 Usage: cni-node <Command> [Args]
 
 Commands
-    install plugins <Plugins>  install specified CNI plugins
-    install config <Template>  install CNI config from the specified template
-    list                       list available CNI plugins
-    version                    show version
+    install plugins <Plugins>    install specified CNI plugins
+    install config <Template>    install CNI configuration file from template
+
+    uninstall plugins <Plugins>  delete specified CNI plugins
+    uninstall config <Config>    delete specified CNI configuration file
+
+    list                         list available CNI plugins
+    version                      show version
 EOF
 )
 
 function main {
     case "$1 $2" in
         "install plugins"|\
-        "install config")
+        "install config"|\
+        "uninstall plugins"|\
+        "uninstall config")
             local ACTION="$1"
             local TARGET="$2"
             shift 2
@@ -42,7 +48,6 @@ function install_plugins {
     done
     echo "Done."
 }
-
 function install_config {
     local TEMPLATE="/etc/cni/net.d/$1"
 
@@ -58,6 +63,22 @@ function install_config {
     echo "### ${TEMPLATE} ###"
     cat "/host/${TEMPLATE}"
     echo "###"
+}
+
+function uninstall_plugins {
+    local PLUGINS=$*
+
+    for PLUGIN in ${PLUGINS}; do
+        echo "Uninstalling CNI plugin ${PLUGIN}..."
+        rm -f "/host/opt/cni/bin/${PLUGIN}"
+    done
+    echo "Done."
+}
+function uninstall_config {
+    local CONFIG="/host/etc/cni/net.d/$1"
+
+    echo "Ununstalling CNI configuration $(basename "${CONFIG}")..."
+    rm -f "${CONFIG}"
 }
 
 function sed_args {
