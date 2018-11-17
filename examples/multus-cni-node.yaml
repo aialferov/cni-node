@@ -34,16 +34,15 @@ spec:
       - key: node.kubernetes.io/not-ready
         effect: NoSchedule
       initContainers:
-      - name: plugins-install
+      - name: install
         image: openvnf/cni-node
-        args: ["install", "plugins", "multus-cni", "macvlan"]
+        args:
+        - install
+        - --plugins=multus-cni,macvlan
+        - --config=05-multus-cni.conf
         volumeMounts:
         - name: cnibin
           mountPath: /host/opt/cni/bin
-      - name: config-install
-        image: openvnf/cni-node
-        args: ["install", "config", "05-multus-cni.conf"]
-        volumeMounts:
         - name: cnicfg
           mountPath: /host/etc/cni/net.d
         - name: multus-cni-node-config

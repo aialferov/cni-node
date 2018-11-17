@@ -26,8 +26,8 @@ Install plugins:
 
 ```
 $ docker run --rm \
-    -v <Dest>:/host/opt/cni/bin \
-    openvnf/cni-node install plugins <Plugins>
+    -v <Dest Dir>:/host/opt/cni/bin \
+    openvnf/cni-node install --plugins=<Plugins> # comma separated
 ```
 
 Install CNI configuration from a template:
@@ -36,39 +36,31 @@ Install CNI configuration from a template:
 $ docker run --rm \
     -v <Dest Dir>:/host/etc/cni/net.d \
     -v <Template Path>:/etc/cni/net.d/<Template File> \
-    openvnf/cni-node install config <Template File>
+    openvnf/cni-node install --config=<Template File>
 ```
 
-A "Template File" might contain a special pointer named after existing in the
-"Dest Dir" CNI configuration files. Each pointer will be replaced with the
+"Template File" might contain special pointers named after existing in the
+"Dest Dir" CNI configuration files. Each pointer will be replaced by the
 corresponding file content in a final configuration file.
 
-For example, if a "Template File" contains the following line:
+For example, if a template contains the following line:
 
 ```
 __10-calico.conflist__
 ```
 
-and file with such a name exists in the "Dest Dir", then content of this file
-will be inserted insted of the pointer.
+and file with the name "10-calico.conflist" exists in the "Dest Dir", then
+content of this file will be inserted instead of the pointer.
 
-To uninstall CNI plugins and configuration replace "install" with "uninstall" in
+To install plugins and configuration in one run specify "--plugins" and
+"--config" options simultaneously.
+
+To uninstall plugins and configuration replace "install" with "uninstall" in
 the instructions above.
 
 ## Docker Example
 
-Let's install Ipvlan CNI plugin and its configuration on a node.
-
-Install CNI plugin:
-
-```
-$ docker run --rm \
-    -v /opt/cni/bin:/host/opt/cni/bin \
-    openvnf/cni-node install plugins ipvlan
-
-Installing CNI plugin ipvlan...
-Done.
-```
+Consider installing Ipvlan CNI plugin and its configuration on a node.
 
 Provided an Ipvlan configuration template:
 
@@ -85,14 +77,17 @@ $ cat ipvlan.tmpl
 }
 ```
 
-Install CNI configuration from the template:
+Install CNI plugin and its configuration:
 
 ```
 $ docker run --rm \
+    -v /opt/cni/bin:/host/opt/cni/bin \
     -v /etc/cni/net.d:/host/etc/cni/net.d \
     -v $PWD/ipvlan.tmpl:/etc/cni/net.d/05-ipvlan.conf \
-    openvnf/cni-node install config 05-ipvlan.conf
+    openvnf/cni-node install --plugins=ipvlan --config=05-ipvlan.conf
 
+Installing CNI plugin ipvlan...
+Done.
 Installing CNI configuration from 05-ipvlan.conf...
 ### /etc/cni/net.d/05-ipvlan.conf ###
 {

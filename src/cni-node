@@ -3,34 +3,39 @@
 set -e
 
 USAGE=$(cat <<EOF
-Usage: cni-node <Command> [Args]
+Usage: cni-node <Command> [Options]
 
 Commands
-    install plugins <Plugins>    install specified CNI plugins
-    install config <Template>    install CNI configuration file from template
+    install    install specified CNI plugins and configuration
+    uninstall  uninstall specified CNI plugins and configuration
 
-    uninstall plugins <Plugins>  delete specified CNI plugins
-    uninstall config <Config>    delete specified CNI configuration file
+    list       list available CNI plugins
+    version    show version
 
-    list                         list available CNI plugins
-    version                      show version
+Options
+    --plugins=<Plugins>  Comma separated CNI plugins
+    --config=<Template>  CNI configuration template
 EOF
 )
 
 function main {
-    case "$1 $2" in
-        "install plugins"|\
-        "install config"|\
-        "uninstall plugins"|\
-        "uninstall config")
+    case "$1" in
+        install|uninstall)
             local ACTION="$1"
-            local TARGET="$2"
-            shift 2
-
-            "${ACTION}_${TARGET}" "$@"
+            shift
+            for ARG in "$@"; do
+                case "${ARG}" in
+                    --plugins=*) local PLUGINS="${ARG#*=}"; shift ;;
+                    --config=*) local CONFIG="${ARG#*=}"; shift ;;
+                    *=*) >&2 echo "Unknown argument: ${ARG%=*}"; exit 2 ;;
+                    *) >&2 echo "Unknown argument: ${ARG}"; exit 2 ;;
+                esac
+            done
+            [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS/,/ }"
+            [ -n "${CONFIG}" ] && "${ACTION}_config" "${CONFIG}";
         ;;
-        "list ") ls -1 /opt/cni/bin ;;
-        "version ") cat /version ;;
+        list) ls -1 /opt/cni/bin ;;
+        version) cat /version ;;
         *) usage ;;
     esac
 }
