@@ -2,8 +2,8 @@
 
 [![License: Apache-2.0][Apache 2.0 Badge]][Apache 2.0]
 [![GitHub Release Badge]][GitHub Releases]
-![Multus Badge]
-![CNI Plugins Badge]
+[![Multus Badge]][Multus Release]
+[![CNI Plugins Badge]][CNI Plugins Release]
 
 A [Docker] image for installing and configuring [CNI Plugins] and [Multus CNI]
 on a node. For example on a [Kubernetes] one.
@@ -179,4 +179,6 @@ limitations under the License.
 [GitHub Releases]: https://github.com/openvnf/cni-node/releases
 [GitHub Release Badge]: https://img.shields.io/github/release/openvnf/cni-node/all.svg?style=flat-square
 [Multus Badge]: https://img.shields.io/badge/Multus%20CNI-v3.1-green.svg?style=flat-square
+[Multus Release]: https://github.com/intel/multus-cni/releases/tag/v3.1
 [CNI Plugins Badge]: https://img.shields.io/badge/CNI%20Plugins-v0.7.4-green.svg?style=flat-square
+[CNI Plugins Release]: https://github.com/containernetworking/plugins/releases/tag/v0.7.4
