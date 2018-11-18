@@ -138,6 +138,9 @@ To apply the changes delete the "multus-cni-node" pods to make them restart:
 $ kubectl -n kube-system delete po -l app=multus-cni-node
 ```
 
+In this example deleting a multus-cni-node pod also causes uninstalling plugins
+and configuration. See the "lifecycle" section of pod container.
+
 Please note, this example does not create ready to use Multus CNI solution. It
 just installs plugin binaries and configuration. For complete solution please
 refer [Multus CNI] documentation (the hard way) or [Cennsonic Based] example

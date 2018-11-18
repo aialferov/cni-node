@@ -41,6 +41,14 @@ spec:
         - --plugins=multus-cni,macvlan
         - --config=05-multus-cni.conf
         - --wait
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - cni-node
+              - uninstall
+              - --plugins=multus-cni,macvlan
+              - --config=05-multus-cni.conf
         volumeMounts:
         - name: cnibin
           mountPath: /host/opt/cni/bin
