@@ -173,7 +173,7 @@ limitations under the License.
 
 [Apache 2.0]: https://opensource.org/licenses/Apache-2.0
 [Apache 2.0 Badge]: https://img.shields.io/badge/License-Apache%202.0-yellowgreen.svg?style=flat-square
-[GitHub Releases]: https://github.com/travelping/cennsonic/releases
+[GitHub Releases]: https://github.com/openvnf/cni-node/releases
 [GitHub Release Badge]: https://img.shields.io/github/release/openvnf/cni-node/all.svg?style=flat-square
 [Multus Badge]: https://img.shields.io/badge/Multus%20CNI-v3.1-green.svg?style=flat-square
 [CNI Plugins Badge]: https://img.shields.io/badge/CNI%20Plugins-v0.7.4-green.svg?style=flat-square
