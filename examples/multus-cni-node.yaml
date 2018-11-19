@@ -36,10 +36,11 @@ spec:
       containers:
       - name: cni-node
         image: openvnf/cni-node
-        args:
+        command:
+        - cni-node
         - install
         - --plugins=multus-cni,macvlan
-        - --config=05-multus-cni.conf
+        - --configs=05-multus-cni.conf
         - --wait
         lifecycle:
           preStop:
@@ -48,7 +49,7 @@ spec:
               - cni-node
               - uninstall
               - --plugins=multus-cni,macvlan
-              - --config=05-multus-cni.conf
+              - --configs=05-multus-cni.conf
         volumeMounts:
         - name: cnibin
           mountPath: /host/opt/cni/bin

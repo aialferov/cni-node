@@ -24,96 +24,85 @@ $ docker run --rm openvnf/cni-node list
 
 ### Install CNI
 
-Install plugins:
+The following components can be installed:
+
+* CNI plugins binaries
+* CNI configuration files
+* Kubernetes objects for plugins support
+
+#### Binaries
+
+Plugins binaries are installed to the "/host/opt/cni/bin" directory:
 
 ```
 $ docker run --rm \
-    -v <Dest Dir>:/host/opt/cni/bin \
-    openvnf/cni-node install --plugins=<Plugins> # comma separated
+    -v /opt/cni/bin:/host/opt/cni/bin \
+    openvnf/cni-node install --plugins=flannel,ipvlan
 ```
 
-Install CNI configuration from a template:
+Will install specified plugins to "/opt/cni/bin".
+
+#### Configuration
+
+CNI configuration files are installed to the "/host/etc/cni/net.d" directory,
+and the specified templates will be looked up in the "/etc/cni/net.d" one:
 
 ```
 $ docker run --rm \
-    -v <Dest Dir>:/host/etc/cni/net.d \
-    -v <Template Path>:/etc/cni/net.d/<Template File> \
-    openvnf/cni-node install --config=<Template File>
+    -v /etc/cni/net.d:/host/etc/cni/net.d \
+    -v $PWD/multus.conf:/etc/cni/net.d/05-multus.conf \
+    -v $PWD/ipvlan.conf:/etc/cni/net.d/10-ipvlan.conf \
+    openvnf/cni-node install --configs=05-multus.conf,10-ipvlan.conf
 ```
 
-"Template File" might contain special pointers named after existing in the
-"Dest Dir" CNI configuration files. Each pointer will be replaced by the
-corresponding file content in a final configuration file.
+Configuration template files might contain special pointers named after the
+existing in the destination directory CNI configuration files. Each pointer will
+be replaced by the corresponding file content in a final configuration file.
 
-For example, if a template contains the following line:
+Thus, if "multus.conf" from the example above contains the following line:
 
 ```
 __10-calico.conflist__
 ```
 
-and file with the name "10-calico.conflist" exists in the "Dest Dir", then
-content of this file will be inserted instead of the pointer.
+and a file with the name "10-calico.conflist" exists in "/etc/cni/net.d", then
+content of this file will substitute the pointer in the final
+"/etc/cni/net.d/05-multus.conf" file.
 
-To install plugins and configuration in one run specify "--plugins" and
-"--config" options simultaneously.
+#### Kubernetes Objects
 
-### Uninstall CNI
-
-To uninstall plugins and configuration replace "install" with "uninstall" in
-the instructions above.
-
-### Wait
-
-To wait for SIGING or SIGTERM signal after install or uninstall action add
-"--wait" option.
-
-## Docker Example
-
-Consider installing Ipvlan CNI plugin and its configuration on a node.
-
-Provided an Ipvlan configuration template:
-
-```
-$ cat ipvlan.tmpl
-{
-    "name": "mynet",
-    "type": "ipvlan",
-    "master": "eth2",
-    "ipam": {
-        "type": "host-local",
-        "subnet": "172.19.2.0/24"
-    }
-}
-```
-
-Install CNI plugin and its configuration:
+In order to support an installed CNI plugin, for example create a pod or a node
+specific [ClusterRoleBinding], a Kubernetes object can be created from a
+manifest. Manifests are expected in the "/etc/kubernetes/manifests" directory:
 
 ```
 $ docker run --rm \
-    -v /opt/cni/bin:/host/opt/cni/bin \
-    -v /etc/cni/net.d:/host/etc/cni/net.d \
-    -v $PWD/ipvlan.tmpl:/etc/cni/net.d/05-ipvlan.conf \
-    openvnf/cni-node install --plugins=ipvlan --config=05-ipvlan.conf
-
-Installing CNI plugin ipvlan...
-Done.
-Installing CNI configuration from 05-ipvlan.conf...
-### /etc/cni/net.d/05-ipvlan.conf ###
-{
-    "name": "mynet",
-    "type": "ipvlan",
-    "master": "eth2",
-    "ipam": {
-        "type": "host-local",
-        "subnet": "172.19.2.0/24"
-    }
-}
-###
+    -v $PWD:/etc/kubernetes/manifests \
+    openvnf/cni-node install --manifests=crb.yaml,sa.yaml
 ```
+
+Kubernetes objects will be created from the specified files if they exist in
+"$PWD". If the files contain any environment variable references ("$VAR" or
+"${VAR}") they will be substituted.
+
+#### All Together
+
+The options can be used togehter to install/uninstall plugins, configurations,
+and create/delete Kubernetes objects in one run.
+
+### Uninstall CNI
+
+To delete installed plugins, configuration files or created Kubernetes objects,
+use "uninstall" command in the examples above.
+
+### Wait
+
+To wait for a SIGINT or SIGTERM signal after install or uninstall action add
+"--wait" option.
 
 ## Kubernetes Example
 
-The example uses [DaemonSet] to install Multus and Macvlan CNI plugins on each
+This example uses [DaemonSet] to install Multus and Macvlan CNI plugins on each
 Kubernetes node and configure Multus CNI the way describing delegation to the
 existing Calico configuration (assuming "/etc/cni/net.d/10-calico.conflist"
 exists).
@@ -171,6 +160,7 @@ limitations under the License.
 [Multus CNI]: https://github.com/intel/multus-cni
 [CNI Plugins]: https://github.com/containernetworking/plugins
 [Cennsonic Based]: https://github.com/travelping/cennsonic/blob/master/docs/components/network.md#multus
+[ClusterRoleBinding]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
 
 <!-- Badges -->
 
