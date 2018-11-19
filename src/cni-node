@@ -6,16 +6,17 @@ USAGE=$(cat <<EOF
 Usage: cni-node <Command> [Options]
 
 Commands
-    install    install specified CNI plugins and configuration
-    uninstall  uninstall specified CNI plugins and configuration
+    install    install according to the options
+    uninstall  uninstall according to the options
 
     list       list available CNI plugins
     version    show version
 
 Options
-    --plugins=<Plugins>  Comma separated CNI plugins
-    --config=<Template>  CNI configuration template
-    --wait               Wait until SIGTERM or SIGINT after install/uninstall
+    --plugins=<Plugins>      Comma separated CNI plugins
+    --config=<Template>      CNI configuration template
+    --manifests=<Manifests>  Kubernetes manifest templates
+    --wait                   Wait for SIGTERM or SIGINT after install/uninstall
 EOF
 )
 
@@ -25,17 +26,22 @@ function main {
             local ACTION="$1"
             local WAIT=false
             shift
+
             for ARG in "$@"; do
                 case "${ARG}" in
                     --plugins=*) local PLUGINS="${ARG#*=}"; shift ;;
                     --config=*) local CONFIG="${ARG#*=}"; shift ;;
+                    --manifests=*) local MANIFESTS="${ARG#*=}"; shift ;;
                     --wait) WAIT=true; shift ;;
                     *=*) >&2 echo "Unknown argument: ${ARG%=*}"; exit 2 ;;
                     *) >&2 echo "Unknown argument: ${ARG}"; exit 2 ;;
                 esac
             done
+
             [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS/,/ }"
             [ -n "${CONFIG}" ] && "${ACTION}_config" "${CONFIG}";
+            [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS/,/ }";
+
             "${WAIT}" && wait
         ;;
         list) ls -1 /opt/cni/bin ;;
@@ -69,6 +75,14 @@ function install_config {
     cat "/host/${TEMPLATE}"
     echo "###"
 }
+function install_manifests {
+    local MANIFESTS=$*
+
+    for MANIFEST in ${MANIFESTS}; do
+        echo "Creating Kubernetes object from ${MANIFEST}..."
+        manifest create "${MANIFEST}"
+    done
+}
 
 function uninstall_plugins {
     local PLUGINS=$*
@@ -84,6 +98,25 @@ function uninstall_config {
 
     echo "Ununstalling CNI configuration $(basename "${CONFIG}")..."
     rm -f "${CONFIG}"
+}
+function uninstall_manifests {
+    local MANIFESTS=$*
+
+    for MANIFEST in ${MANIFESTS}; do
+        echo "Deleting Kubernetes object from ${MANIFEST}..."
+        manifest delete "${MANIFEST}"
+    done
+}
+
+function manifest {
+    local ACTION="$1"
+    local MANIFEST="/etc/kubernetes/manifests/$2"
+    local SERVICE_ACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
+
+    envsubst < "${MANIFEST}" | \
+        kubectl --token "$(cat "${SERVICE_ACCOUNT}/token")" \
+                --certificate-authority "${SERVICE_ACCOUNT}/ca.crt" \
+                "${ACTION}" --filename -
 }
 
 function sed_args {
