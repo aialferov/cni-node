@@ -14,7 +14,7 @@ Commands
 
 Options
     --plugins=<Plugins>      Comma separated CNI plugins
-    --config=<Template>      CNI configuration template
+    --configs=<Configs>      CNI configuration templates
     --manifests=<Manifests>  Kubernetes manifest templates
     --wait                   Wait for SIGTERM or SIGINT after install/uninstall
 EOF
@@ -30,7 +30,7 @@ function main {
             for ARG in "$@"; do
                 case "${ARG}" in
                     --plugins=*) local PLUGINS="${ARG#*=}"; shift ;;
-                    --config=*) local CONFIG="${ARG#*=}"; shift ;;
+                    --configs=*) local CONFIGS="${ARG#*=}"; shift ;;
                     --manifests=*) local MANIFESTS="${ARG#*=}"; shift ;;
                     --wait) WAIT=true; shift ;;
                     *=*) >&2 echo "Unknown argument: ${ARG%=*}"; exit 2 ;;
@@ -39,7 +39,7 @@ function main {
             done
 
             [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS/,/ }"
-            [ -n "${CONFIG}" ] && "${ACTION}_config" "${CONFIG}";
+            [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS/,/ }";
             [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS/,/ }";
 
             "${WAIT}" && wait
@@ -57,30 +57,36 @@ function install_plugins {
         echo "Installing CNI plugin ${PLUGIN}..."
         install "/opt/cni/bin/${PLUGIN}" "/host/opt/cni/bin/${PLUGIN}"
     done
-    echo "Done."
+    [ -n "${PLUGINS}" ] && echo "Done."
 }
-function install_config {
-    local TEMPLATE="/etc/cni/net.d/$1"
+function install_configs {
+    local CONFIGS=$*
 
-    echo "Installing CNI configuration from $(basename "${TEMPLATE}")..."
+    for CONFIG in ${CONFIGS}; do
+        echo "Installing CNI configuration from $(basename "${CONFIG}")..."
 
-    local SED_ARGS; SED_ARGS="$(sed_args "${TEMPLATE}")"
-    if [ -n "${SED_ARGS}" ]; then
-        sed ${SED_ARGS} "${TEMPLATE}" | tee "/host/${TEMPLATE}" > /dev/null
-    else
-        cp "${TEMPLATE}" "/host/${TEMPLATE}"
-    fi
+        local SED_ARGS; SED_ARGS="$(sed_args "${CONFIG}")"
+        if [ -n "${SED_ARGS}" ]; then
+            sed ${SED_ARGS} "${CONFIG}" | tee "/host/${CONFIG}" > /dev/null
+        else
+            cp "${CONFIG}" "/host/${CONFIG}"
+        fi
 
-    echo "### ${TEMPLATE} ###"
-    cat "/host/${TEMPLATE}"
-    echo "###"
+        echo "### ${CONFIG} ###"
+        cat "/host/${CONFIG}"
+        echo "###"
+    done
 }
 function install_manifests {
     local MANIFESTS=$*
 
     for MANIFEST in ${MANIFESTS}; do
         echo "Creating Kubernetes object from ${MANIFEST}..."
-        manifest create "${MANIFEST}"
+        envsubst < "${MANIFEST}" | kubectl delete --filename -
+
+        echo "### ${MANIFEST} ###"
+        envsubst < "${MANIFEST}"
+        echo "###"
     done
 }
 
@@ -93,30 +99,29 @@ function uninstall_plugins {
     done
     echo "Done."
 }
-function uninstall_config {
-    local CONFIG="/host/etc/cni/net.d/$1"
+function uninstall_configs {
+    local CONFIGS=$*
 
-    echo "Ununstalling CNI configuration $(basename "${CONFIG}")..."
-    rm -f "${CONFIG}"
+    for CONFIG in ${CONFIGS}; do
+        echo "Ununstalling CNI configuration $(basename "${CONFIG}")..."
+        rm -f "${CONFIG}"
+    done
 }
 function uninstall_manifests {
     local MANIFESTS=$*
 
     for MANIFEST in ${MANIFESTS}; do
         echo "Deleting Kubernetes object from ${MANIFEST}..."
-        manifest delete "${MANIFEST}"
+        envsubst < "${MANIFEST}" | kubectl delete --filename -
     done
 }
 
-function manifest {
-    local ACTION="$1"
-    local MANIFEST="/etc/kubernetes/manifests/$2"
+function kubectl {
     local SERVICE_ACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
+    local CACERT="${SERVICE_ACCOUNT}/ca.crt"
+    local TOKEN; TOKEN="$(cat "${SERVICE_ACCOUNT}/token")"
 
-    envsubst < "${MANIFEST}" | \
-        kubectl --token "$(cat "${SERVICE_ACCOUNT}/token")" \
-                --certificate-authority "${SERVICE_ACCOUNT}/ca.crt" \
-                "${ACTION}" --filename -
+    kubectl --token "${TOKEN}" --certificate-authority "${CACERT}" "$@"
 }
 
 function sed_args {
