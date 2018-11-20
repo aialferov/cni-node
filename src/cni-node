@@ -63,7 +63,8 @@ function install_configs {
     local CONFIGS=$*
 
     for CONFIG in ${CONFIGS}; do
-        echo "Installing CNI configuration from $(basename "${CONFIG}")..."
+        echo "Installing CNI configuration from ${CONFIG}..."
+        CONFIG="/etc/cni/net.d/${CONFIG}"
 
         local SED_ARGS; SED_ARGS="$(sed_args "${CONFIG}")"
         if [ -n "${SED_ARGS}" ]; then
@@ -72,7 +73,7 @@ function install_configs {
             cp "${CONFIG}" "/host/${CONFIG}"
         fi
 
-        echo "### ${CONFIG} ###"
+        echo "### $(basename "${CONFIG}") ###"
         cat "/host/${CONFIG}"
         echo "###"
     done
@@ -82,9 +83,11 @@ function install_manifests {
 
     for MANIFEST in ${MANIFESTS}; do
         echo "Creating Kubernetes object from ${MANIFEST}..."
-        envsubst < "${MANIFEST}" | kubectl delete --filename -
+        MANIFEST="/etc/kubernetes/manifests/${MANIFEST}"
 
-        echo "### ${MANIFEST} ###"
+        envsubst < "${MANIFEST}" | kubectl create --filename -
+
+        echo "### $(basename "${MANIFEST}") ###"
         envsubst < "${MANIFEST}"
         echo "###"
     done
@@ -97,23 +100,27 @@ function uninstall_plugins {
         echo "Uninstalling CNI plugin ${PLUGIN}..."
         rm -f "/host/opt/cni/bin/${PLUGIN}"
     done
-    echo "Done."
+    [ -n "${PLUGINS}" ] && echo "Done."
 }
 function uninstall_configs {
     local CONFIGS=$*
 
     for CONFIG in ${CONFIGS}; do
-        echo "Ununstalling CNI configuration $(basename "${CONFIG}")..."
-        rm -f "${CONFIG}"
+        echo "Ununstalling CNI configuration ${CONFIG}..."
+        rm -f "/host/etc/cni/net.d/${CONFIG}"
     done
+    [ -n "${CONFIGS}" ] && echo "Done."
 }
 function uninstall_manifests {
     local MANIFESTS=$*
 
     for MANIFEST in ${MANIFESTS}; do
         echo "Deleting Kubernetes object from ${MANIFEST}..."
+        MANIFEST="/etc/kubernetes/manifests/${MANIFEST}"
+
         envsubst < "${MANIFEST}" | kubectl delete --filename -
     done
+    [ -n "${MANIFESTS}" ] && echo "Done."
 }
 
 function kubectl {
@@ -121,7 +128,7 @@ function kubectl {
     local CACERT="${SERVICE_ACCOUNT}/ca.crt"
     local TOKEN; TOKEN="$(cat "${SERVICE_ACCOUNT}/token")"
 
-    kubectl --token "${TOKEN}" --certificate-authority "${CACERT}" "$@"
+    /bin/kubectl --token "${TOKEN}" --certificate-authority "${CACERT}" "$@"
 }
 
 function sed_args {
