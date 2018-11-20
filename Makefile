@@ -1,7 +1,7 @@
 PROJECT = cni-node
 VERSION = 0.3.0
 
-REGISTRY = docker.io
+REGISTRY = quay.io
 USER = openvnf
 
 GIT_SHA = $(shell git rev-parse HEAD | cut -c1-8)
