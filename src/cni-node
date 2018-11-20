@@ -38,9 +38,9 @@ function main {
                 esac
             done
 
-            [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS/,/ }"
-            [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS/,/ }";
-            [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS/,/ }";
+            [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS//,/ }"
+            [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS//,/ }";
+            [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS//,/ }";
 
             "${WAIT}" && wait
         ;;
