@@ -85,6 +85,20 @@ Kubernetes objects will be created from the specified files if they exist in
 "$PWD". If the files contain any environment variable references ("$VAR" or
 "${VAR}") they will be substituted.
 
+Please note: this particular example most probably will not work "as is",
+as Kubernetes API access is required and expected to be provided via
+certificate authority and token files:
+
+* /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+* /var/run/secrets/kubernetes.io/serviceaccount/token
+
+and valid Kubernetes API endpoint:
+
+* https://kubernetes.default
+
+These requirements are usually satisfied when container runs in a
+Kubernetes pod and has a corresponding service account relation.
+
 #### All Together
 
 The options can be used togehter to install/uninstall plugins, configurations,
