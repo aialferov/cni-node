@@ -86,7 +86,7 @@ function install_manifests {
         echo "Creating Kubernetes object from ${MANIFEST}..."
         MANIFEST="/etc/kubernetes/manifests/${MANIFEST}"
 
-        envsubst < "${MANIFEST}" | kubectl create --filename -
+        envsubst < "${MANIFEST}" | kubectl apply --filename -
 
         echo "### $(basename "${MANIFEST}") ###"
         envsubst < "${MANIFEST}"
