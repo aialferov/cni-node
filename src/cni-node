@@ -42,6 +42,7 @@ function main {
             [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS//,/ }";
             [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS//,/ }";
 
+            echo "Complete."
             "${WAIT}" && wait
         ;;
         list) ls -1 /opt/cni/bin ;;
@@ -148,14 +149,14 @@ function template_pointers {
 }
 
 function wait {
-    echo "Waiting for SIGTERM or SIGINT..."
+    echo "Paused (waiting for SIGTERM or SIGINT to stop)..."
     trap stop SIGTERM SIGINT
     while :; do
         sleep 1
     done
 }
 function stop {
-    echo "Done."
+    echo "Stopped."
     exit 0
 }
 
