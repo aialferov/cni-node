@@ -1,0 +1,109 @@
+#!/bin/bash
+
+set -e
+
+USAGE=$(cat <<EOF
+Usage: cni-node-watchers run <ConfigMap>
+EOF
+)
+
+function main {
+    local ACTION="$1"
+
+    case "${ACTION}" in
+        run) shift; run_watchers "$@" ;;
+        *) usage ;;
+    esac
+}
+
+function run_watchers {
+    local CONFIGMAP="$1"
+    if [ -z "${CONFIGMAP}" ]; then usage; fi
+
+    local WATCHERS=()
+    local CHANNEL
+    local TARGET
+    local TARGETS
+
+    TARGETS=("plugins" "configs" "manifests")
+    for TARGET in "${TARGETS[@]}"; do
+        CHANNEL="$(channels)/${TARGET}"
+
+        run_channel_watcher "${CHANNEL}"
+        WATCHERS+=("$!")
+    done
+
+#       run_configmap_watcher "${CONFIGMAP}" "${TARGET}" "${CHANNEL}"
+#       WATCHERS+=("$!")
+
+    trap 'kill -TERM ${WATCHERS[@]}' SIGTERM SIGINT
+    echo "Running watchers (PIDs: ${WATCHERS[*]})..."
+    wait "${WATCHERS[@]}"
+}
+
+function run_configmap_watcher {
+    local CONFIGMAP="$1"
+    local TARGET="$2"
+    local CHANNEL="$3"
+
+    (while :; do
+        kubectl get configmap "${CONFIGMAP}" \
+                --watch \
+                --output jsonpath="{.data.${TARGET}}" |
+            tee "${CHANNEL}" > /dev/null
+    done) &
+}
+
+function run_channel_watcher {
+    local CHANNEL="$1"
+
+    [ ! -e "${CHANNEL}" ] && mkdir -p "$(channels)" && touch "${CHANNEL}"
+    inotifyd cni-node-update "${CHANNEL}" &
+}
+
+#function in_configs_targets {
+#    local CONFIGMAP="$1"
+#    local CONFIG
+#    local CONFIGS
+#    local TARGETS=()
+#
+#    CONFIGS="$(read_configmap "${CONFIGMAP}" configs)"
+#    for CONFIG in ${CONFIGS}; do
+#        TARGETS+=()
+#    done
+#    echo "${TARGETS[@]}"
+#}
+#
+#function in_manifests_targets {
+#    echo ""
+#}
+
+function read_configmap {
+    local CONFIGMAP="$1"
+    local KEY="${2//./\\.}"
+
+    kubectl get configmap "${CONFIGMAP}" --output jsonpath="{.data.${KEY}}"
+}
+
+function channels {
+    echo "/var/run/channels"
+}
+
+function kubectl {
+     local SERVICE_ACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
+     local CACERT; CACERT="${SERVICE_ACCOUNT}/ca.crt"
+     local TOKEN; TOKEN="$(cat "${SERVICE_ACCOUNT}/token")"
+     local NAMESPACE; NAMESPACE="$(cat "${SERVICE_ACCOUNT}/namespace")"
+ 
+     /bin/kubectl --certificate-authority "${CACERT}" \
+                  --token "${TOKEN}" \
+                  --namespace "${NAMESPACE}" \
+                  "$@"
+}
+
+function usage {
+    >&2 echo "${USAGE}"
+    exit 2
+}
+
+main "$@"
