@@ -51,6 +51,8 @@ spec:
               - --plugins=multus-cni,macvlan
               - --configs=05-multus-cni.conf
         volumeMounts:
+        - name: kubectl
+          mountPath: /bin/kubectl
         - name: cnibin
           mountPath: /host/opt/cni/bin
         - name: cnicfg
@@ -58,6 +60,9 @@ spec:
         - name: multus-cni-node-config
           mountPath: /etc/cni/net.d
       volumes:
+      - name: kubectl
+        hostPath:
+          path: /opt/bin/kubectl
       - name: cnibin
         hostPath:
           path: /opt/cni/bin
