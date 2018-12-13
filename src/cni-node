@@ -38,9 +38,9 @@ function main {
                 esac
             done
 
-            [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS//,/ }"
-            [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS//,/ }";
-            [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS//,/ }";
+            [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS}"
+            [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS}"
+            [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS}"
 
             echo "Complete."
             "${WAIT}" && wait
@@ -52,7 +52,8 @@ function main {
 }
 
 function install_plugins {
-    local PLUGINS=$*
+    local PLUGINS="${1//,/ }"
+    local PLUGIN
 
     for PLUGIN in ${PLUGINS}; do
         echo "Installing CNI plugin ${PLUGIN}..."
@@ -61,36 +62,40 @@ function install_plugins {
     [ -n "${PLUGINS}" ] && echo "Done."
 }
 function install_configs {
-    local CONFIGS=$*
+    local CONFIGS="${1//,/ }"
+    local CONFIG
 
     for CONFIG in ${CONFIGS}; do
-        echo "Installing CNI configuration from ${CONFIG}..."
-        CONFIG="/etc/cni/net.d/${CONFIG}"
+        echo "Installing CNI configuration file ${CONFIG}..."
 
-        local SED_ARGS; SED_ARGS="$(sed_args "${CONFIG}")"
+        local CONFIG_PATH="/etc/cni/net.d/${CONFIG}"
+        local CONFIG_DEST="/host/etc/cni/net.d/${CONFIG}"
+        local SED_ARGS; SED_ARGS="$(sed_args "${CONFIG_PATH}")"
+
         if [ -n "${SED_ARGS}" ]; then
-            sed ${SED_ARGS} "${CONFIG}" | tee "/host/${CONFIG}" > /dev/null
+            sed ${SED_ARGS} "${CONFIG_PATH}" | tee "${CONFIG_DEST}" > /dev/null
         else
-            cp "${CONFIG}" "/host/${CONFIG}"
+            cp "${CONFIG_PATH}" "${CONFIG_DEST}"
         fi
 
-        echo "### $(basename "${CONFIG}") ###"
-        cat "/host/${CONFIG}"
+        echo "### ${CONFIG} ###"
+        cat "${CONFIG_DEST}"
         echo "###"
     done
     [ -n "${CONFIGS}" ] && echo "Done."
 }
 function install_manifests {
-    local MANIFESTS=$*
+    local MANIFESTS="${1//,/ }"
+    local MANIFEST
 
     for MANIFEST in ${MANIFESTS}; do
         echo "Creating Kubernetes object from ${MANIFEST}..."
-        MANIFEST="/etc/kubernetes/manifests/${MANIFEST}"
+        local MANIFEST_PATH="/etc/kubernetes/manifests/${MANIFEST}"
 
-        envsubst < "${MANIFEST}" | kubectl apply --filename -
+        envsubst < "${MANIFEST_PATH}" | kubectl apply --filename -
 
-        echo "### $(basename "${MANIFEST}") ###"
-        envsubst < "${MANIFEST}"
+        echo "### ${MANIFEST} ###"
+        envsubst < "${MANIFEST_PATH}"
         echo "###"
     done
     [ -n "${MANIFESTS}" ] && echo "Done."
@@ -109,7 +114,7 @@ function uninstall_configs {
     local CONFIGS=$*
 
     for CONFIG in ${CONFIGS}; do
-        echo "Ununstalling CNI configuration ${CONFIG}..."
+        echo "Uninstalling CNI configuration ${CONFIG}..."
         rm -f "/host/etc/cni/net.d/${CONFIG}"
     done
     [ -n "${CONFIGS}" ] && echo "Done."
@@ -145,7 +150,7 @@ function sed_args {
 
 function template_pointers {
     local TEMPLATE="$1"
-    grep -o "__\\(.*\\)__" "${TEMPLATE}" | sed "s/__\\(.*\\)__/\\1/"
+    sed -n "s/.*__\\(.*\\)__.*/\\1/p" "${TEMPLATE}"
 }
 
 function wait {
