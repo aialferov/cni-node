@@ -38,9 +38,9 @@ function main {
                 esac
             done
 
-            [ -n "${PLUGINS}" ] && "${ACTION}_plugins" "${PLUGINS}"
-            [ -n "${CONFIGS}" ] && "${ACTION}_configs" "${CONFIGS}"
-            [ -n "${MANIFESTS}" ] && "${ACTION}_manifests" "${MANIFESTS}"
+            [ -n "${PLUGINS}" ] && items "${ACTION}" plugins "${PLUGINS}"
+            [ -n "${CONFIGS}" ] && items "${ACTION}" configs "${CONFIGS}"
+            [ -n "${MANIFESTS}" ] && items "${ACTION}" manifests "${MANIFESTS}"
 
             echo "Complete."
             "${WAIT}" && wait
@@ -51,84 +51,110 @@ function main {
     esac
 }
 
-function install_plugins {
-    local PLUGINS="${1//,/ }"
-    local PLUGIN
+function items {
+    local ACTION="$1"
+    local TYPE="$2"
+    local ITEMS="${3//,/ }"
+    local ITEM
 
-    for PLUGIN in ${PLUGINS}; do
-        echo "Installing CNI plugin ${PLUGIN}..."
-        install "/opt/cni/bin/${PLUGIN}" "/host/opt/cni/bin/${PLUGIN}"
+    for ITEM in ${ITEMS}; do
+        "${TYPE}"_item_"${ACTION}" "${ITEM}"
     done
-    [ -n "${PLUGINS}" ] && echo "Done."
-}
-function install_configs {
-    local CONFIGS="${1//,/ }"
-    local CONFIG
-
-    for CONFIG in ${CONFIGS}; do
-        echo "Installing CNI configuration file ${CONFIG}..."
-
-        local CONFIG_PATH="/etc/cni/net.d/${CONFIG}"
-        local CONFIG_DEST="/host/etc/cni/net.d/${CONFIG}"
-        local SED_ARGS; SED_ARGS="$(sed_args "${CONFIG_PATH}")"
-
-        if [ -n "${SED_ARGS}" ]; then
-            sed ${SED_ARGS} "${CONFIG_PATH}" | tee "${CONFIG_DEST}" > /dev/null
-        else
-            cp "${CONFIG_PATH}" "${CONFIG_DEST}"
-        fi
-
-        echo "### ${CONFIG} ###"
-        cat "${CONFIG_DEST}"
-        echo "###"
-    done
-    [ -n "${CONFIGS}" ] && echo "Done."
-}
-function install_manifests {
-    local MANIFESTS="${1//,/ }"
-    local MANIFEST
-
-    for MANIFEST in ${MANIFESTS}; do
-        echo "Creating Kubernetes object from ${MANIFEST}..."
-        local MANIFEST_PATH="/etc/kubernetes/manifests/${MANIFEST}"
-
-        envsubst < "${MANIFEST_PATH}" | kubectl apply --filename -
-
-        echo "### ${MANIFEST} ###"
-        envsubst < "${MANIFEST_PATH}"
-        echo "###"
-    done
-    [ -n "${MANIFESTS}" ] && echo "Done."
+    [ -n "${ITEMS}" ] && echo "Done."
 }
 
-function uninstall_plugins {
-    local PLUGINS=$*
-
-    for PLUGIN in ${PLUGINS}; do
-        echo "Uninstalling CNI plugin ${PLUGIN}..."
-        rm -f "/host/opt/cni/bin/${PLUGIN}"
-    done
-    [ -n "${PLUGINS}" ] && echo "Done."
+function plugins_item_install {
+    plugin_install "$@"
 }
-function uninstall_configs {
-    local CONFIGS=$*
-
-    for CONFIG in ${CONFIGS}; do
-        echo "Uninstalling CNI configuration ${CONFIG}..."
-        rm -f "/host/etc/cni/net.d/${CONFIG}"
-    done
-    [ -n "${CONFIGS}" ] && echo "Done."
+function plugins_item_uninstall {
+    plugin_uninstall "$@"
 }
-function uninstall_manifests {
-    local MANIFESTS=$*
+function configs_item_install {
+    local FILENAME="$1"
+    config_install "${FILENAME}" "$(cat "/etc/cni/net.d/${FILENAME}")"
+}
+function configs_item_uninstall {
+    local FILENAME="$1"
+    config_uninstall "${FILENAME}"
+}
+function manifests_item_install {
+    local NAME="$1"
+    manifest_install "${NAME}" "$(cat "/etc/kubernetes/manifests/${NAME}")"
+}
+function manifests_item_uninstall {
+    local NAME="$1"
+    manifest_uninstall "${NAME}" "$(cat "/etc/kubernetes/manifests/${NAME}")"
+}
 
-    for MANIFEST in ${MANIFESTS}; do
-        echo "Deleting Kubernetes object from ${MANIFEST}..."
-        MANIFEST="/etc/kubernetes/manifests/${MANIFEST}"
+function plugin_install {
+    local PLUGIN="$1"
+    echo "Installing CNI plugin ${PLUGIN}..."
+    install "/opt/cni/bin/${PLUGIN}" "/host/opt/cni/bin/${PLUGIN}"
+}
+function plugin_uninstall {
+    local PLUGIN="$1"
+    echo "Uninstalling CNI plugin ${PLUGIN}..."
+    rm -f "/host/opt/cni/bin/${PLUGIN}"
+}
 
-        envsubst < "${MANIFEST}" | kubectl delete --filename -
+function config_install {
+    local NAME="$1"
+    local CONTENT="$2"
+
+    echo "Installing CNI configuration from ${NAME}..."
+
+    local DEST_PATH="/host/etc/cni/net.d/${NAME}"
+    local SED_ARGS; SED_ARGS="$(sed_args "${CONTENT}")"
+
+    if [ -n "${SED_ARGS}" ]; then
+        echo "${CONTENT}" | sed ${SED_ARGS} | tee "${DEST_PATH}" > /dev/null
+    else
+        echo "${CONTENT}" | tee "${DEST_PATH}" > /dev/null
+    fi
+
+    echo "### ${NAME} ###"
+    echo "${CONTENT}"
+    echo "###"
+}
+function config_uninstall {
+    local FILENAME="$1"
+    echo "Uninstalling CNI configuration ${FILENAME}..."
+    rm -f "/host/etc/cni/net.d/${FILENAME}"
+}
+
+function manifest_install {
+    local NAME="$1"
+    local CONTENT="$2"
+
+    echo "Applying Kubernetes object..."
+    echo "### ${NAME} ###"
+    echo "${CONTENT}" | envsubst
+    echo "###"
+
+    echo "${CONTENT}" | envsubst | kubectl apply --filename -
+}
+function manifest_uninstall {
+    local NAME="$1"
+    local CONTENT="$2"
+
+    echo "Deleting Kubernetes object..."
+    echo "### ${NAME} ###"
+    echo "${CONTENT}" | envsubst
+    echo "###"
+
+    echo "${CONTENT}" | envsubst | kubectl delete --filename -
+}
+
+function sed_args {
+    local CONTENT="$1"
+    local POINTER
+    local POINTERS
+
+    POINTERS="$(echo "CONTENT" | sed -n "s/.*__\\(.*\\)__.*/\\1/p")"
+    for POINTER in ${POINTERS}; do
+        printf %b " -e /__${POINTER}__/r/host/${POINTER}" \
+                  " -e /__${POINTER}__/d"
     done
-    [ -n "${MANIFESTS}" ] && echo "Done."
 }
 
 function kubectl {
@@ -137,20 +163,6 @@ function kubectl {
     local TOKEN; TOKEN="$(cat "${SERVICE_ACCOUNT}/token")"
 
     /bin/kubectl --token "${TOKEN}" --certificate-authority "${CACERT}" "$@"
-}
-
-function sed_args {
-    local TEMPLATE="$1"
-
-    for POINTER in $(template_pointers "${TEMPLATE}"); do
-        printf %b " -e /__${POINTER}__/r/host/etc/cni/net.d/${POINTER}" \
-                  " -e /__${POINTER}__/d"
-    done
-}
-
-function template_pointers {
-    local TEMPLATE="$1"
-    sed -n "s/.*__\\(.*\\)__.*/\\1/p" "${TEMPLATE}"
 }
 
 function wait {
