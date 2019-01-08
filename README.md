@@ -109,10 +109,10 @@ and create/delete Kubernetes objects in one run.
 To delete installed plugins, configuration files or created Kubernetes objects,
 use "uninstall" command in the examples above.
 
-### Wait
+### Pause
 
-To wait for a SIGINT or SIGTERM signal after install or uninstall action add
-"--wait" option.
+To pause waiting for a SIGINT or SIGTERM signal after (un)installing action add
+"--pause" option.
 
 ## Kubernetes Example
 
@@ -127,7 +127,7 @@ Use Multus CNI Node [Manifest] to create the example workloads:
 $ kubectl create -f https://raw.githubusercontent.com/openvnf/cni-node/master/examples/multus-cni-node.yaml
 ```
 
-After installation pods of the daemonset keep running (using "--wait" option)
+After installation pods of the daemonset keep running (using "--pause" option)
 and can be used to apply configuration changes. To change configuration edit
 the ConfigMap:
 

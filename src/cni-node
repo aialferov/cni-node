@@ -16,7 +16,7 @@ Options
     --plugins=<Plugins>      Comma separated CNI plugins
     --configs=<Configs>      CNI configuration templates
     --manifests=<Manifests>  Kubernetes manifest templates
-    --wait                   Wait for SIGTERM or SIGINT after install/uninstall
+    --pause                  Pause for SIGTERM or SIGINT after install/uninstall
 EOF
 )
 
@@ -24,26 +24,25 @@ function main {
     case "$1" in
         install|uninstall)
             local ACTION="$1"
-            local WAIT=false
-            shift
+            local PAUSE=false
 
+            shift
             for ARG in "$@"; do
                 case "${ARG}" in
-                    --plugins=*) local PLUGINS="${ARG#*=}"; shift ;;
-                    --configs=*) local CONFIGS="${ARG#*=}"; shift ;;
-                    --manifests=*) local MANIFESTS="${ARG#*=}"; shift ;;
-                    --wait) WAIT=true; shift ;;
-                    *=*) >&2 echo "Unknown argument: ${ARG%=*}"; exit 2 ;;
-                    *) >&2 echo "Unknown argument: ${ARG}"; exit 2 ;;
+                    --plugins=*) local PLUGINS="${ARG#*=}" ;;
+                    --configs=*) local CONFIGS="${ARG#*=}" ;;
+                    --manifests=*) local MANIFESTS="${ARG#*=}" ;;
+                    --pause) PAUSE=true ;;
+                    *) unknown_option "${ARG}" ;;
                 esac
             done
 
-            [ -n "${PLUGINS}" ] && items "${ACTION}" plugins "${PLUGINS}"
-            [ -n "${CONFIGS}" ] && items "${ACTION}" configs "${CONFIGS}"
-            [ -n "${MANIFESTS}" ] && items "${ACTION}" manifests "${MANIFESTS}"
+            do_action "${ACTION}" plugins "${PLUGINS}"
+            do_action "${ACTION}" configs "${CONFIGS}"
+            do_action "${ACTION}" manifests "${MANIFESTS}"
 
             echo "Complete."
-            "${WAIT}" && wait
+            "${PAUSE}" && pause
         ;;
         list) ls -1 /opt/cni/bin ;;
         version) cat /version ;;
@@ -51,39 +50,18 @@ function main {
     esac
 }
 
-function items {
+function do_action {
     local ACTION="$1"
-    local TYPE="$2"
+    local TYPE="${2%?}"
     local ITEMS="${3//,/ }"
     local ITEM
 
     for ITEM in ${ITEMS}; do
-        "${TYPE}"_item_"${ACTION}" "${ITEM}"
+        "${TYPE}"_"${ACTION}" "${ITEM}"
     done
-    [ -n "${ITEMS}" ] && echo "Done."
-}
-
-function plugins_item_install {
-    plugin_install "$@"
-}
-function plugins_item_uninstall {
-    plugin_uninstall "$@"
-}
-function configs_item_install {
-    local FILENAME="$1"
-    config_install "${FILENAME}" "$(cat "/etc/cni/net.d/${FILENAME}")"
-}
-function configs_item_uninstall {
-    local FILENAME="$1"
-    config_uninstall "${FILENAME}"
-}
-function manifests_item_install {
-    local NAME="$1"
-    manifest_install "${NAME}" "$(cat "/etc/kubernetes/manifests/${NAME}")"
-}
-function manifests_item_uninstall {
-    local NAME="$1"
-    manifest_uninstall "${NAME}" "$(cat "/etc/kubernetes/manifests/${NAME}")"
+    if [ -n "${ITEMS}" ]; then
+        echo "Done."
+    fi
 }
 
 function plugin_install {
@@ -98,23 +76,21 @@ function plugin_uninstall {
 }
 
 function config_install {
-    local NAME="$1"
-    local CONTENT="$2"
-
-    echo "Installing CNI configuration from ${NAME}..."
-
-    local DEST_PATH="/host/etc/cni/net.d/${NAME}"
+    local FILENAME="$1"
+    local CONTENT; CONTENT="$(cat "/etc/cni/net.d/${FILENAME}")"
+    local DEST_PATH="/host/etc/cni/net.d/${FILENAME}"
     local SED_ARGS; SED_ARGS="$(sed_args "${CONTENT}")"
 
     if [ -n "${SED_ARGS}" ]; then
-        echo "${CONTENT}" | sed ${SED_ARGS} | tee "${DEST_PATH}" > /dev/null
-    else
-        echo "${CONTENT}" | tee "${DEST_PATH}" > /dev/null
+        CONTENT="$(echo "${CONTENT}" | sed ${SED_ARGS})"
     fi
 
-    echo "### ${NAME} ###"
+    echo "Installing CNI configuration from ${FILENAME}..."
+    echo "### ${FILENAME} ###"
     echo "${CONTENT}"
     echo "###"
+
+    echo "${CONTENT}" | tee "${DEST_PATH}" > /dev/null
 }
 function config_uninstall {
     local FILENAME="$1"
@@ -123,22 +99,22 @@ function config_uninstall {
 }
 
 function manifest_install {
-    local NAME="$1"
-    local CONTENT="$2"
+    local FILENAME="$1"
+    local CONTENT; CONTENT="$(cat "/etc/kubernetes/manifests/${FILENAME}")"
 
     echo "Applying Kubernetes object..."
-    echo "### ${NAME} ###"
+    echo "### ${FILENAME} ###"
     echo "${CONTENT}" | envsubst
     echo "###"
 
     echo "${CONTENT}" | envsubst | kubectl apply --filename -
 }
 function manifest_uninstall {
-    local NAME="$1"
-    local CONTENT="$2"
+    local FILENAME="$1"
+    local CONTENT; CONTENT="$(cat "/etc/kubernetes/manifests/${FILENAME}")"
 
     echo "Deleting Kubernetes object..."
-    echo "### ${NAME} ###"
+    echo "### ${FILENAME} ###"
     echo "${CONTENT}" | envsubst
     echo "###"
 
@@ -150,9 +126,9 @@ function sed_args {
     local POINTER
     local POINTERS
 
-    POINTERS="$(echo "CONTENT" | sed -n "s/.*__\\(.*\\)__.*/\\1/p")"
+    POINTERS="$(echo "${CONTENT}" | sed -n "s/.*__\\(.*\\)__.*/\\1/p")"
     for POINTER in ${POINTERS}; do
-        printf %b " -e /__${POINTER}__/r/host/${POINTER}" \
+        printf %b " -e /__${POINTER}__/r/host/etc/cni/net.d/${POINTER}" \
                   " -e /__${POINTER}__/d"
     done
 }
@@ -162,10 +138,10 @@ function kubectl {
     local CACERT="${SERVICE_ACCOUNT}/ca.crt"
     local TOKEN; TOKEN="$(cat "${SERVICE_ACCOUNT}/token")"
 
-    /bin/kubectl --token "${TOKEN}" --certificate-authority "${CACERT}" "$@"
+    /bin/kubectl --certificate-authority "${CACERT}" --token "${TOKEN}" "$@"
 }
 
-function wait {
+function pause {
     echo "Paused (waiting for SIGTERM or SIGINT to stop)..."
     trap stop SIGTERM SIGINT
     while :; do
@@ -179,6 +155,11 @@ function stop {
 
 function usage {
     >&2 echo "${USAGE}"
+    exit 2
+}
+function unknown_option {
+    local OPTION="$1"
+    >&2 echo "Unknown option: ${OPTION%%=*}"
     exit 2
 }
 
