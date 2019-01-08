@@ -41,7 +41,7 @@ spec:
         - install
         - --plugins=multus-cni,macvlan
         - --configs=05-multus-cni.conf
-        - --wait
+        - --pause
         lifecycle:
           preStop:
             exec:
