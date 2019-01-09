@@ -66,6 +66,7 @@ function do_action {
 function plugin_install {
     local PLUGIN="$1"
     echo "Installing CNI plugin ${PLUGIN}..."
+    mkdir -p "/host/opt/cni/bin"
     install "/opt/cni/bin/${PLUGIN}" "/host/opt/cni/bin/${PLUGIN}"
 }
 function plugin_uninstall {
@@ -77,7 +78,6 @@ function plugin_uninstall {
 function config_install {
     local FILENAME="$1"
     local CONTENT; CONTENT="$(cat "/etc/cni/net.d/${FILENAME}")"
-    local DEST_PATH="/host/etc/cni/net.d/${FILENAME}"
     local SED_ARGS; SED_ARGS="$(sed_args "${CONTENT}")"
 
     if [ -n "${SED_ARGS}" ]; then
@@ -89,7 +89,8 @@ function config_install {
     echo "${CONTENT}"
     echo "###"
 
-    echo "${CONTENT}" | tee "${DEST_PATH}" > /dev/null
+    mkdir -p "/host/etc/cni/net.d"
+    echo "${CONTENT}" | tee "/host/etc/cni/net.d/${FILENAME}" > /dev/null
 }
 function config_uninstall {
     local FILENAME="$1"
