@@ -14,8 +14,8 @@ function main {
     local TO_INSTALL; TO_INSTALL="$(added "${CURRENT}" "${PREVIOUS}")"
     local TO_UNINSTALL; TO_UNINSTALL="$(removed "${CURRENT}" "${PREVIOUS}")"
 
-    echo cni-node install "--${TYPE}=${TO_INSTALL// /,}"
-    echo cni-node uninstall "--${TYPE}=${TO_UNINSTALL// /,}"
+    cni-node install "--${TYPE}=${TO_INSTALL// /,}"
+    cni-node uninstall "--${TYPE}=${TO_UNINSTALL// /,}"
 }
 
 function added {
