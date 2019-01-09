@@ -1,4 +1,5 @@
-FROM alpine
+ARG KUBE_WATCH_VERSION=0.2.2
+FROM quay.io/travelping/kube-watch:${KUBE_WATCH_VERSION}
 
 ARG PROJECT=
 ARG VERSION=
