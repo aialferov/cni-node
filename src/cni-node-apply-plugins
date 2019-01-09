@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cni-node-apply plugins "$2" "$3"

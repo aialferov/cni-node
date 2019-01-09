@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cni-node-apply manifests "$2" "$3"

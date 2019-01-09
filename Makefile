@@ -31,7 +31,7 @@ usage:
 	@echo "    version"
 
 shellcheck:
-	shellcheck -as bash src/$(PROJECT){,-apply}
+	shellcheck -as bash src/$(PROJECT){,-apply{,-plugins,-configs,-manifests}}
 
 docker-build:
 	docker build $(BUILD_ARGS) . -t $(IMAGE)
