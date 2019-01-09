@@ -41,7 +41,6 @@ function main {
             do_action "${ACTION}" configs "${CONFIGS}"
             do_action "${ACTION}" manifests "${MANIFESTS}"
 
-            echo "Complete."
             "${PAUSE}" && pause
         ;;
         list) ls -1 /opt/cni/bin ;;
