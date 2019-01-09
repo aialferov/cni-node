@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e
+
+USAGE="Usage: cni-node-apply <Type> <Current> <Previous>"
+
+function main {
+    local TYPE="$1"
+    local CURRENT="${2//,/ }"
+    local PREVIOUS="${3//,/ }"
+
+    if [ -z "${TYPE}" ] || [ -z "${CURRENT}" ]; then usage; fi
+
+    local TO_INSTALL; TO_INSTALL="$(added "${CURRENT}" "${PREVIOUS}")"
+    local TO_UNINSTALL; TO_UNINSTALL="$(removed "${CURRENT}" "${PREVIOUS}")"
+
+    echo cni-node install "--${TYPE}=${TO_INSTALL// /,}"
+    echo cni-node uninstall "--${TYPE}=${TO_UNINSTALL// /,}"
+}
+
+function added {
+    difference 2 "$@"
+}
+function removed {
+    difference 1 "$@"
+}
+function difference {
+    local N="$1"
+    local CURRENT="$2"
+    local PREVIOUS="$3"
+
+    comm -"${N}3" <(echo "${CURRENT}" | xargs -n1 | sort) \
+                  <(echo "${PREVIOUS}" | xargs -n1 | sort) |
+         paste -sd" " -
+}
+
+function usage {
+    >&2 echo "${USAGE}"
+    exit 2
+}
+
+main "$@"
