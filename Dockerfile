@@ -24,7 +24,7 @@ RUN apk upgrade --no-cache --update && \
     wget -O- "${MULTUS_CNI_URL}" | tar -C /opt/cni/bin -xz --strip 1 && \
     rm /opt/cni/bin/README.md && \
     rm /opt/cni/bin/LICENSE && \
-    echo "${VERSION} (git-${GIT_SHA})" > /version
+    echo "${VERSION} (git-${GIT_SHA})" > "/${PROJECT}-version"
 
 COPY src /bin
 ENTRYPOINT ["/bin/cni-node"]

@@ -44,7 +44,7 @@ function main {
             "${PAUSE}" && pause
         ;;
         list) ls -1 /opt/cni/bin ;;
-        version) cat /version ;;
+        version) cat /cni-node-version ;;
         *) usage ;;
     esac
 }
