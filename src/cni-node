@@ -41,7 +41,7 @@ function main {
             do_action "${ACTION}" configs "${CONFIGS}"
             do_action "${ACTION}" manifests "${MANIFESTS}"
 
-            "${PAUSE}" && pause
+            if ${PAUSE}; then pause; fi
         ;;
         list) ls -1 /opt/cni/bin ;;
         version) cat /cni-node-version ;;
