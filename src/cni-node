@@ -21,9 +21,10 @@ EOF
 )
 
 function main {
-    case "$1" in
+    local ACTION="$1"
+
+    case "${ACTION}" in
         install|uninstall)
-            local ACTION="$1"
             local PAUSE=false
 
             shift
