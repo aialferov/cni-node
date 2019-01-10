@@ -55,6 +55,10 @@ function do_action {
     local ITEMS="${3//,/ }"
     local ITEM
 
+    if [ "${ACTION}" = uninstall ]; then
+        ITEMS="$(echo "${ITEMS}" | xargs -n1 | tac | paste -sd" " -)"
+    fi
+
     for ITEM in ${ITEMS}; do
         "${TYPE}"_"${ACTION}" "${ITEM}"
     done
