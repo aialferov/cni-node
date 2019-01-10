@@ -8,30 +8,45 @@ function main {
     local TYPE="$1"
     local CURRENT="${2//,/ }"
     local PREVIOUS="${3//,/ }"
+    local TO_INSTALL
+    local TO_UNINSTALL
 
     if [ -z "${TYPE}" ] || [ -z "${CURRENT}" ]; then usage; fi
 
-    local TO_INSTALL; TO_INSTALL="$(added "${CURRENT}" "${PREVIOUS}")"
-    local TO_UNINSTALL; TO_UNINSTALL="$(removed "${CURRENT}" "${PREVIOUS}")"
+    TO_INSTALL="$(difference added "${CURRENT}" "${PREVIOUS}")"
+    TO_UNINSTALL="$(difference removed "${CURRENT}" "${PREVIOUS}")"
 
     cni-node install "--${TYPE}=${TO_INSTALL// /,}"
     cni-node uninstall "--${TYPE}=${TO_UNINSTALL// /,}"
 }
 
-function added {
-    difference 2 "$@"
-}
-function removed {
-    difference 1 "$@"
-}
 function difference {
-    local N="$1"
+    local CONDITION="$1"
     local CURRENT="$2"
     local PREVIOUS="$3"
 
-    comm -"${N}3" <(echo "${CURRENT}" | xargs -n1 | sort) \
-                  <(echo "${PREVIOUS}" | xargs -n1 | sort) |
-         paste -sd" " -
+    case "${CONDITION}" in
+        added) local N=2 ;;
+        removed) local N=1 ;;
+    esac
+
+    local DIFF
+    DIFF="$(comm -"${N}3" <(echo "${CURRENT}" | xargs -n1 | sort) \
+                          <(echo "${PREVIOUS}" | xargs -n1 | sort) |
+                 paste -sd" " -)"
+
+    case "${CONDITION}" in
+        added) local TARGET="${CURRENT}" ;;
+        removed) local TARGET="${PREVIOUS}" ;;
+    esac
+
+    local RESULT=()
+    for ITEM in ${TARGET}; do
+        if [[ "${DIFF}" =~ ${ITEM} ]]; then
+            RESULT+=("${ITEM}")
+        fi
+    done
+    echo "${RESULT[@]}"
 }
 
 function usage {
