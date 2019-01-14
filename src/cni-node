@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -8,15 +8,17 @@ Usage: cni-node <Command> [Options]
 Commands
     install    install according to the options
     uninstall  uninstall according to the options
+    apply      install and uninstall comparing desired and current items
 
     list       list available CNI plugins
     version    show version
 
 Options
-    --plugins=<Plugins>      Comma separated CNI plugins
-    --configs=<Configs>      CNI configuration templates
-    --manifests=<Manifests>  Kubernetes manifest templates
-    --pause                  Pause for SIGTERM or SIGINT after install/uninstall
+    --plugins=<Desired[:Current]>    Comma separated CNI plugins
+    --configs=<Desired[:Current]>    CNI configuration templates
+    --manifests=<Desired[:Current]>  Kubernetes manifest templates
+    --pause                          Pause for SIGTERM or SIGINT after the
+                                     specified command complete
 EOF
 )
 
@@ -24,10 +26,13 @@ function main {
     local ACTION="$1"
 
     case "${ACTION}" in
-        install|uninstall)
+        install|\
+        uninstall|\
+        apply)
             local PAUSE=false
 
             shift
+            local ARG
             for ARG in "$@"; do
                 case "${ARG}" in
                     --plugins=*) local PLUGINS="${ARG#*=}" ;;
@@ -38,9 +43,9 @@ function main {
                 esac
             done
 
-            do_action "${ACTION}" plugins "${PLUGINS}"
-            do_action "${ACTION}" configs "${CONFIGS}"
-            do_action "${ACTION}" manifests "${MANIFESTS}"
+            cli_do_action "${ACTION}" plugins "${PLUGINS}"
+            cli_do_action "${ACTION}" configs "${CONFIGS}"
+            cli_do_action "${ACTION}" manifests "${MANIFESTS}"
 
             if ${PAUSE}; then pause; fi
         ;;
@@ -50,20 +55,45 @@ function main {
     esac
 }
 
+function cli_do_action {
+    local ACTION="$1"
+    local TYPE="$2"
+    local ITEMS="$3"
+    local DESIRED="${ITEMS//:*/}"; DESIRED="${DESIRED//,/ }"
+    local CURRENT="${ITEMS//*:/}"; CURRENT="${CURRENT//,/ }"
+
+    do_action "${ACTION}" "${TYPE}" "${DESIRED}" "${CURRENT}"
+}
+
 function do_action {
     local ACTION="$1"
-    local TYPE="${2%?}"
-    local ITEMS="${3//,/ }"
-    local ITEM
+    local TYPE="$2"
+    local DESIRED="$3"
+    local CURRENT="$4"
 
-    if [ "${ACTION}" = uninstall ]; then
-        ITEMS="$(echo "${ITEMS}" | xargs -n1 | tac | paste -sd" " -)"
+    if [ "${ACTION}" = "apply" ]; then
+        local ADDED
+        local REMOVED
+
+        ADDED="$(difference added "${DESIRED}" "${CURRENT}")"
+        REMOVED="$(difference removed "${DESIRED}" "${CURRENT}")"
+
+        do_action install "${TYPE}" "${ADDED}"
+        do_action uninstall "${TYPE}" "${REMOVED}"
+
+        return
     fi
 
-    for ITEM in ${ITEMS}; do
-        "${TYPE}"_"${ACTION}" "${ITEM}"
+    if [ "${ACTION}" = "uninstall" ]; then
+        DESIRED="$(items_reverse "${DESIRED}")"
+    fi
+
+    local ITEM
+    for ITEM in ${DESIRED}; do
+        "${TYPE%?}"_"${ACTION}" "${ITEM}"
     done
-    if [ -n "${ITEMS}" ]; then
+
+    if [ -n "${DESIRED}" ]; then
         echo "Done."
     fi
 }
@@ -136,6 +166,40 @@ function sed_args {
         printf %b " -e /__${POINTER}__/r/host/etc/cni/net.d/${POINTER}" \
                   " -e /__${POINTER}__/d"
     done
+}
+
+function difference {
+    local CONDITION="$1"
+    local DESIRED="$2"
+    local CURRENT="$3"
+
+    case "${CONDITION}" in
+        added) local N=2 ;;
+        removed) local N=1 ;;
+    esac
+
+    local DIFF
+    DIFF="$(comm -"${N}3" <(echo "${DESIRED}" | xargs -n1 | sort) \
+                          <(echo "${CURRENT}" | xargs -n1 | sort) |
+                 paste -sd" " -)"
+
+    case "${CONDITION}" in
+        added) local TARGET="${DESIRED}" ;;
+        removed) local TARGET="${CURRENT}" ;;
+    esac
+
+    local RESULT=()
+    for ITEM in ${TARGET}; do
+        if [[ "${DIFF}" =~ ${ITEM} ]]; then
+            RESULT+=("${ITEM}")
+        fi
+    done
+    echo "${RESULT[@]}"
+}
+
+function items_reverse {
+    local ITEMS="$1"
+    echo "${ITEMS}" | xargs -n1 | tac | paste -sd" " -
 }
 
 function kubectl {
