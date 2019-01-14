@@ -87,12 +87,17 @@ data:
   cni-node-watch: |
     #!/bin/sh
     exec kube-watch object configmap multus-cni-node \
-                    "--jsonpath={.data.$1}" \
-                    "--handler=cni-node-apply-$1"
+                    --jsonpath="{.data.$1}" \
+                    --handler="cni-node-apply-$1"
 
-  cni-node-read: |
+  cni-node-watch-calico: |
     #!/bin/sh
-    kubectl get configmap multus-cni-node --output jsonpath="{.data.$1}"
+    exec kube-watch file /host/etc/cni/net.d/10-calico.conflist \
+                    --handler=cni-node-apply-05-multus-cni
+
+  cni-node-apply-05-multus-cni: |
+    #!/bin/sh
+    cni-node install --configs=05-multus-cni.conf
 
   cni-node-apply-plugins: |
     #!/bin/sh
@@ -109,6 +114,10 @@ data:
   cni-node-uninstall: |
     #!/bin/sh
     cni-node uninstall "--$1"="$(cni-node-read "$1")"
+
+  cni-node-read: |
+    #!/bin/sh
+    kubectl get configmap multus-cni-node --output jsonpath="{.data.$1}"
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -182,6 +191,17 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+      - name: calico
+        image: quay.io/openvnf/cni-node:0.4.0
+        imagePullPolicy: Always
+        command: ["cni-node-watch-calico"]
+        volumeMounts:
+        - name: cnicfg
+          mountPath: /host/etc/cni/net.d
+        - name: configs
+          mountPath: /etc/cni/net.d
+        - name: scripts
+          mountPath: /usr/local/bin
       volumes:
       - name: kubectl
         hostPath:
