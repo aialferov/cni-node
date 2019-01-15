@@ -8,18 +8,32 @@
 A [Docker] image for installing and configuring [CNI Plugins] and [Multus CNI]
 on a node. For example on a [Kubernetes] one.
 
+* [Usage](#usage)
+  * [Install CNI](#install-cni)
+    * [Binaries](#binaries)
+    * [Configuration](#configuration)
+    * [Kubernetes Objects](#kubernetes-objects)
+    * [All Together](#all-together)
+  * [Apply CNI](#apply-cni)
+  * [Uninstall CNI](#uninstall-cni)
+  * [Pause](#pause)
+* [Usage in Kubernetes](#usage-in-kubernetes)
+  * [Simple Example](#simple-example)
+  * [Watching Changes](#watching-changes)
+* [License](#license)
+
 ## Usage
 
 Run without arguments to see usage:
 
 ```
-$ docker run --rm openvnf/cni-node
+$ docker run --rm quay.io/openvnf/cni-node
 ```
 
 Print list of available CNI plugins:
 
 ```
-$ docker run --rm openvnf/cni-node list
+$ docker run --rm quay.io/openvnf/cni-node list
 ```
 
 ### Install CNI
@@ -28,36 +42,39 @@ The following components can be installed:
 
 * CNI plugins binaries
 * CNI configuration files
-* Kubernetes objects for plugins support
+* Kubernetes objects for plugins support.
 
 #### Binaries
 
-Plugins binaries are installed to the "/host/opt/cni/bin" directory:
+CNI plugins binaries are baked into the image and installed to the
+"/host/opt/cni/bin" directory:
 
 ```
 $ docker run --rm \
     -v /opt/cni/bin:/host/opt/cni/bin \
-    openvnf/cni-node install --plugins=flannel,ipvlan
+    quay.io/openvnf/cni-node install --plugins=flannel,ipvlan
 ```
 
 Will install specified plugins to "/opt/cni/bin".
 
 #### Configuration
 
-CNI configuration files are installed to the "/host/etc/cni/net.d" directory,
-and the specified templates will be looked up in the "/etc/cni/net.d" one:
+CNI plugins configuration files (templates) should be mounted to the
+"/etc/cni/net.d" directory and will be installed to the "/host/etc/cni/net.d"
+directory (should be mounted from the node if you expect the files there):
 
 ```
 $ docker run --rm \
     -v /etc/cni/net.d:/host/etc/cni/net.d \
     -v $PWD/multus.conf:/etc/cni/net.d/05-multus.conf \
     -v $PWD/ipvlan.conf:/etc/cni/net.d/10-ipvlan.conf \
-    openvnf/cni-node install --configs=05-multus.conf,10-ipvlan.conf
+    quay.io/openvnf/cni-node install --configs=05-multus.conf,10-ipvlan.conf
 ```
 
-Configuration template files might contain special pointers named after the
-existing in the destination directory CNI configuration files. Each pointer will
-be replaced by the corresponding file content in a final configuration file.
+Configuration files might be templates containing special pointers named after
+the existing in the destination directory CNI configuration files. Each pointer
+will be replaced by the corresponding file content in the final configuration
+file.
 
 Thus, if "multus.conf" from the example above contains the following line:
 
@@ -65,89 +82,180 @@ Thus, if "multus.conf" from the example above contains the following line:
 __10-calico.conflist__
 ```
 
-and a file with the name "10-calico.conflist" exists in "/etc/cni/net.d", then
-content of this file will substitute the pointer in the final
-"/etc/cni/net.d/05-multus.conf" file.
+and a file with the name "10-calico.conflist" exists in "/host/etc/cni/net.d",
+then content of this file will substitute the pointer in the final
+"/host/etc/cni/net.d/05-multus.conf" file.
 
 #### Kubernetes Objects
 
 In order to support an installed CNI plugin, for example create a pod or a node
 specific [ClusterRoleBinding], a Kubernetes object can be created from a
-manifest. Manifests are expected in the "/etc/kubernetes/manifests" directory:
+manifest. Manifests are expected to be in the "/etc/kubernetes/manifests"
+directory:
 
 ```
 $ docker run --rm \
     -v $PWD:/etc/kubernetes/manifests \
-    openvnf/cni-node install --manifests=crb.yaml,sa.yaml
+    quay.io/openvnf/cni-node install --manifests=crb.yaml,sa.yaml
 ```
 
-Kubernetes objects will be created from the specified files if they exist in
-"$PWD". If the files contain any environment variable references ("$VAR" or
-"${VAR}") they will be substituted.
+In this example "$PWD" should contain specified manifest files.
+
+If manifests contain any environment variable references ("$VAR" or "${VAR}")
+they will be substituted by the corresponding value prior to an object creation.
+Of course, these environment variables should be exported in the container.
 
 Please note: this particular example most probably will not work "as is",
-as Kubernetes API access is required and expected to be provided via
-certificate authority and token files:
-
-* /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-* /var/run/secrets/kubernetes.io/serviceaccount/token
-
-and valid Kubernetes API endpoint:
-
-* https://kubernetes.default
-
-These requirements are usually satisfied when container runs in a
-Kubernetes pod and has a corresponding service account relation.
+as Kubernetes API access is required. This requirement is usually satisfied when
+container runs in a Kubernetes pod and has a corresponding service account
+relation.
 
 #### All Together
 
 The options can be used togehter to install/uninstall plugins, configurations,
 and create/delete Kubernetes objects in one run.
 
+### Apply CNI
+
+You can provide the desired and the current state of plugins, configurations or
+manifests and the corresponding installation or uninstallation will happen. For
+example if the currently installed set of CNI plugins is:
+
+```
+host-device,multus-cni,ipvlan
+```
+
+and the desired one is:
+
+```
+multus-cni,macvlan
+```
+
+you can apply it this way:
+
+```
+$ docker run --rm \
+    -v /opt/cni/bin:/host/opt/cni/bin \
+    quay.io/openvnf/cni-node apply \
+        --plugins=multus-cni,macvlan:host-device,multus-cni,ipvlan
+```
+
+then the "multus-cni" plugin is not touched, but "ipvlan" and "host-device" are
+removed and "macvlan" is installed.
+
 ### Uninstall CNI
 
 To delete installed plugins, configuration files or created Kubernetes objects,
-use "uninstall" command in the examples above.
+use "uninstall" command in the examples above. The assets will be deleted in
+reverse of the specified order.
 
 ### Pause
 
-To pause waiting for a SIGINT or SIGTERM signal after (un)installing action add
-"--pause" option.
+To pause waiting for a SIGINT or SIGTERM signal after any action
+(install/uninstall/apply) add "--pause" option.
 
-## Kubernetes Example
+## Usage in Kubernetes
+
+One of the advantages in using CNI Node with Kubernetes is ability to
+incorporate the [Kube Watch] project for tracking changes automatically applying
+them. We will start from a simple example and get back to the Kube Watch based
+one later on.
+
+### Simple Example
 
 This example uses [DaemonSet] to install Multus and Macvlan CNI plugins on each
 Kubernetes node and configure Multus CNI the way describing delegation to the
-existing Calico configuration (assuming "/etc/cni/net.d/10-calico.conflist"
-exists).
+existing Calico configuration, assuming "/etc/cni/net.d/10-calico.conflist"
+exists on each node.
 
-Use Multus CNI Node [Manifest] to create the example workloads:
-
-```
-$ kubectl create -f https://raw.githubusercontent.com/openvnf/cni-node/master/examples/multus-cni-node.yaml
-```
-
-After installation pods of the daemonset keep running (using "--pause" option)
-and can be used to apply configuration changes. To change configuration edit
-the ConfigMap:
+Use Multus CNI Node [Multus CNI Node Simple Manifest] to create the example
+workloads:
 
 ```
-$ kubectl -n kube-system edit configmap multus-cni-node-config
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-simple.yaml
+```
+
+After installation pods of the daemonset keep running (using the "--pause"
+option) and can be used to apply configuration changes. For example change set
+of CNI plugins to install. To change configuration edit the ConfigMap:
+
+```
+$ kubectl -n kube-system edit configmap multus-cni-node-configs
 ```
 
 To apply the changes delete the "multus-cni-node" pods to make them restart:
 
 ```
-$ kubectl -n kube-system delete po -l app=multus-cni-node
+$ kubectl -n kube-system delete pods -l app=multus-cni-node
 ```
 
-In this example deleting a multus-cni-node pod also causes uninstalling plugins
-and configuration. See the "lifecycle" section of pod container.
+In this example deleting the "multus-cni-node" pods also causes plugins and
+configuration uninstallation. See the "lifecycle" section of pod container in
+the manifest.
 
 Please note, this example does not create ready to use Multus CNI solution. It
-just installs plugin binaries and configuration. For complete solution please
-refer [Multus CNI] documentation (the hard way) or [Cennsonic Based] example
-(the easy way).
+just installs plugins binaries and configuration. The [Watching Changes] example
+implements ready to use solution.
+
+Uninstall the example workloads:
+
+```
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-simple.yaml
+```
+
+### Watching Changes
+
+The example above requires pods restart on every configuration change. Also, in
+this particular example if the Calico configuration file is updated the depended
+Multus CNI configuration should also be updated. Of course, restart of such a
+pod will trigger re-installation of everything, probably because of one part
+change only.
+
+The [CNI Node Docker Image] is based on the [Kube Watch] one, meaning can take
+advantage of Kube Watch functionality. In this example we use it to watch
+changes and perform automatic updates.
+
+This example is also based on [DaemonSet] describing four containers. Each
+container runs Kube Watch to follow the corresponding changes. Three of them
+watch for "multus-cni-node" configmap changes to update set of plugins, plugin
+configurations and manifests. The fourth one is watching for Calico config
+changes to update the depended Multus CNI config. Thus, restart of pods is not
+needed to apply the changes.
+
+In this example we mount "kubectl" binary from a node as CNI Node uses it to
+create or delete manifests, and Kube Watch requires it to watch the ConfigMap.
+For the same purpose we create some [RBAC] objects.
+
+Before deploying the example, please make sure you have uninstalled the [Simple
+Example] related workloads if you played with it. It uses the saming naming and
+might make undesired impact.
+
+To deploy this example we use the following manifests:
+
+* [Multus CNI Node Config/RBAC Manifest]
+* [Multus CNI Node Manifest]
+
+Deploy them in the same order:
+
+```
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-config-rbac.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node.yaml
+```
+
+You can try to edit the "multus-cni-node" ConfigMap or the "10-calico.conflist"
+file to see how the changes get automatically applied.
+
+Uninstall the example deployments in the reverse order:
+
+```
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-config-rbac.yaml
+```
+
+See also:
+
+* [Multus CNI Official →]
+* [Multus CNI in Cennsonic →]
 
 ## License
 
@@ -167,14 +275,22 @@ limitations under the License.
 
 <!-- Links -->
 
+[RBAC]: https://kubernetes.io/docs/reference/access-authn-authz/rbac
 [Docker]: https://docs.docker.com
-[Manifest]: examples/multus-cni-node.yaml
 [DaemonSet]: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset
 [Kubernetes]: https://kubernetes.io
+[Kube Watch]: https://github.com/travelping/kube-watch
 [Multus CNI]: https://github.com/intel/multus-cni
 [CNI Plugins]: https://github.com/containernetworking/plugins
-[Cennsonic Based]: https://github.com/travelping/cennsonic/blob/master/docs/components/network.md#multus
 [ClusterRoleBinding]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
+
+[CNI Node Docker Image]: Dockerfile
+[Multus CNI Node Simple Manifest]: manifests/multus-cni-node-simple.yaml
+[Multus CNI Node Manifest]: manifests/multus-cni-node.yaml
+[Multus CNI Node Config/RBAC Manifest]: manifests/multus-cni-node-config-rbac.yaml
+
+[Multus CNI Official →]: https://github.com/intel/multus-cni/blob/master/doc/quickstart.md
+[Multus CNI in Cennsonic →]: https://github.com/travelping/cennsonic/blob/master/docs/components/network.md#multus-cni
 
 <!-- Badges -->
 

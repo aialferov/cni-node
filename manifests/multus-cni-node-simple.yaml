@@ -1,7 +1,7 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: multus-cni-node-config
+  name: multus-cni-node-configs
   namespace: kube-system
 data:
   05-multus-cni.conf: |
@@ -35,7 +35,8 @@ spec:
         effect: NoSchedule
       containers:
       - name: cni-node
-        image: openvnf/cni-node
+        image: quay.io/openvnf/cni-node:0.4.0
+        imagePullPolicy: Always
         command:
         - cni-node
         - install
@@ -51,24 +52,19 @@ spec:
               - --plugins=multus-cni,macvlan
               - --configs=05-multus-cni.conf
         volumeMounts:
-        - name: kubectl
-          mountPath: /bin/kubectl
         - name: cnibin
           mountPath: /host/opt/cni/bin
         - name: cnicfg
           mountPath: /host/etc/cni/net.d
-        - name: multus-cni-node-config
+        - name: configs
           mountPath: /etc/cni/net.d
       volumes:
-      - name: kubectl
-        hostPath:
-          path: /opt/bin/kubectl
       - name: cnibin
         hostPath:
           path: /opt/cni/bin
       - name: cnicfg
         hostPath:
           path: /etc/cni/net.d
-      - name: multus-cni-node-config
+      - name: configs
         configMap:
-          name: multus-cni-node-config
+          name: multus-cni-node-configs
