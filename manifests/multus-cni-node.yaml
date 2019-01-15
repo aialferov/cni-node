@@ -94,7 +94,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: plugins
-        image: quay.io/openvnf/cni-node:0.4.0
+        image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
         command: ["cni-node-watch", "plugins"]
         lifecycle:
@@ -109,7 +109,7 @@ spec:
         - name: scripts
           mountPath: /usr/local/bin
       - name: configs
-        image: quay.io/openvnf/cni-node:0.4.0
+        image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
         command: ["cni-node-watch", "configs"]
         lifecycle:
@@ -126,7 +126,7 @@ spec:
         - name: scripts
           mountPath: /usr/local/bin
       - name: manifests
-        image: quay.io/openvnf/cni-node:0.4.0
+        image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
         command: ["cni-node-watch", "manifests"]
         lifecycle:
@@ -146,7 +146,7 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
       - name: calico
-        image: quay.io/openvnf/cni-node:0.4.0
+        image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
         command: ["cni-node-watch-calico"]
         volumeMounts:
