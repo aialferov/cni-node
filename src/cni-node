@@ -2,7 +2,7 @@
 
 set -e
 
-USAGE=$(cat <<EOF
+Usage=$(cat <<EOF
 Usage: cni-node <Command> [Options]
 
 Commands
@@ -23,31 +23,31 @@ EOF
 )
 
 function main {
-    local ACTION="$1"
+    local Action="$1"
 
-    case "${ACTION}" in
+    case "${Action}" in
         install|\
         uninstall|\
         apply)
-            local PAUSE=false
+            local Pause=false
 
             shift
-            local ARG
-            for ARG in "$@"; do
-                case "${ARG}" in
-                    --plugins=*) local PLUGINS="${ARG#*=}" ;;
-                    --configs=*) local CONFIGS="${ARG#*=}" ;;
-                    --manifests=*) local MANIFESTS="${ARG#*=}" ;;
-                    --pause) PAUSE=true ;;
-                    *) unknown_option "${ARG}" ;;
+            local Arg
+            for Arg in "$@"; do
+                case "${Arg}" in
+                    --plugins=*) local Plugins="${Arg#*=}" ;;
+                    --configs=*) local Configs="${Arg#*=}" ;;
+                    --manifests=*) local Manifests="${Arg#*=}" ;;
+                    --pause) Pause=true ;;
+                    *) unknown_option "${Arg}" ;;
                 esac
             done
 
-            cli_do_action "${ACTION}" plugins "${PLUGINS}"
-            cli_do_action "${ACTION}" configs "${CONFIGS}"
-            cli_do_action "${ACTION}" manifests "${MANIFESTS}"
+            cli_do_action "${Action}" plugins "${Plugins}"
+            cli_do_action "${Action}" configs "${Configs}"
+            cli_do_action "${Action}" manifests "${Manifests}"
 
-            if ${PAUSE}; then pause; fi
+            if ${Pause}; then pause; fi
         ;;
         list) ls -1 /opt/cni/bin ;;
         version) cat /cni-node-version ;;
@@ -56,150 +56,150 @@ function main {
 }
 
 function cli_do_action {
-    local ACTION="$1"
-    local TYPE="$2"
-    local ITEMS="$3"
-    local DESIRED="${ITEMS//:*/}"; DESIRED="${DESIRED//,/ }"
-    local CURRENT="${ITEMS//*:/}"; CURRENT="${CURRENT//,/ }"
+    local Action="$1"
+    local Type="$2"
+    local Items="$3"
+    local Desired="${Items//:*/}"; Desired="${Desired//,/ }"
+    local Current="${Items//*:/}"; Current="${Current//,/ }"
 
-    do_action "${ACTION}" "${TYPE}" "${DESIRED}" "${CURRENT}"
+    do_action "${Action}" "${Type}" "${Desired}" "${Current}"
 }
 
 function do_action {
-    local ACTION="$1"
-    local TYPE="$2"
-    local DESIRED="$3"
-    local CURRENT="$4"
+    local Action="$1"
+    local Type="$2"
+    local Desired="$3"
+    local Current="$4"
 
-    if [ "${ACTION}" = "apply" ]; then
-        local ADDED
-        local REMOVED
+    if [ "${Action}" = "apply" ]; then
+        local Added
+        local Removed
 
-        ADDED="$(difference added "${DESIRED}" "${CURRENT}")"
-        REMOVED="$(difference removed "${DESIRED}" "${CURRENT}")"
+        Added="$(difference added "${Desired}" "${Current}")"
+        Removed="$(difference removed "${Desired}" "${Current}")"
 
-        do_action install "${TYPE}" "${ADDED}"
-        do_action uninstall "${TYPE}" "${REMOVED}"
+        do_action install "${Type}" "${Added}"
+        do_action uninstall "${Type}" "${Removed}"
 
         return
     fi
 
-    if [ "${ACTION}" = "uninstall" ]; then
-        DESIRED="$(items_reverse "${DESIRED}")"
+    if [ "${Action}" = "uninstall" ]; then
+        Desired="$(items_reverse "${Desired}")"
     fi
 
-    local ITEM
-    for ITEM in ${DESIRED}; do
-        "${TYPE%?}"_"${ACTION}" "${ITEM}"
+    local Item
+    for Item in ${Desired}; do
+        "${Type%?}"_"${Action}" "${Item}"
     done
 
-    if [ -n "${DESIRED}" ]; then
+    if [ -n "${Desired}" ]; then
         echo "Done."
     fi
 }
 
 function plugin_install {
-    local PLUGIN="$1"
-    echo "Installing CNI plugin ${PLUGIN}..."
+    local Plugin="$1"
+    echo "Installing CNI plugin ${Plugin}..."
     mkdir -p "/host/opt/cni/bin"
-    install "/opt/cni/bin/${PLUGIN}" "/host/opt/cni/bin/${PLUGIN}"
+    install "/opt/cni/bin/${Plugin}" "/host/opt/cni/bin/${Plugin}"
 }
 function plugin_uninstall {
-    local PLUGIN="$1"
-    echo "Uninstalling CNI plugin ${PLUGIN}..."
-    rm -f "/host/opt/cni/bin/${PLUGIN}"
+    local Plugin="$1"
+    echo "Uninstalling CNI plugin ${Plugin}..."
+    rm -f "/host/opt/cni/bin/${Plugin}"
 }
 
 function config_install {
-    local FILENAME="$1"
-    local CONTENT; CONTENT="$(cat "/etc/cni/net.d/${FILENAME}")"
-    local SED_ARGS; SED_ARGS="$(sed_args "${CONTENT}")"
+    local FileName="$1"
+    local Content; Content="$(cat "/etc/cni/net.d/${FileName}")"
+    local SedArgs; SedArgs="$(sed_args "${Content}")"
 
-    if [ -n "${SED_ARGS}" ]; then
-        CONTENT="$(echo "${CONTENT}" | sed ${SED_ARGS})"
+    if [ -n "${SedArgs}" ]; then
+        Content="$(echo "${Content}" | sed ${SedArgs})"
     fi
 
-    echo "Installing CNI configuration from ${FILENAME}..."
-    echo "### ${FILENAME} ###"
-    echo "${CONTENT}"
+    echo "Installing CNI configuration from ${FileName}..."
+    echo "### ${FileName} ###"
+    echo "${Content}"
     echo "###"
 
     mkdir -p "/host/etc/cni/net.d"
-    echo "${CONTENT}" | tee "/host/etc/cni/net.d/${FILENAME}" > /dev/null
+    echo "${Content}" | tee "/host/etc/cni/net.d/${FileName}" > /dev/null
 }
 function config_uninstall {
-    local FILENAME="$1"
-    echo "Uninstalling CNI configuration ${FILENAME}..."
-    rm -f "/host/etc/cni/net.d/${FILENAME}"
+    local FileName="$1"
+    echo "Uninstalling CNI configuration ${FileName}..."
+    rm -f "/host/etc/cni/net.d/${FileName}"
 }
 
 function manifest_install {
-    local FILENAME="$1"
-    local CONTENT; CONTENT="$(cat "/etc/kubernetes/manifests/${FILENAME}")"
+    local FileName="$1"
+    local Content; Content="$(cat "/etc/kubernetes/manifests/${FileName}")"
 
     echo "Applying Kubernetes object..."
-    echo "### ${FILENAME} ###"
-    echo "${CONTENT}" | envsubst
+    echo "### ${FileName} ###"
+    echo "${Content}" | envsubst
     echo "###"
 
-    echo "${CONTENT}" | envsubst | kubectl apply --filename -
+    echo "${Content}" | envsubst | kubectl apply --filename -
 }
 function manifest_uninstall {
-    local FILENAME="$1"
-    local CONTENT; CONTENT="$(cat "/etc/kubernetes/manifests/${FILENAME}")"
+    local FileName="$1"
+    local Content; Content="$(cat "/etc/kubernetes/manifests/${FileName}")"
 
     echo "Deleting Kubernetes object..."
-    echo "### ${FILENAME} ###"
-    echo "${CONTENT}" | envsubst
+    echo "### ${FileName} ###"
+    echo "${Content}" | envsubst
     echo "###"
 
-    echo "${CONTENT}" | envsubst | kubectl delete --filename -
+    echo "${Content}" | envsubst | kubectl delete --filename -
 }
 
 function sed_args {
-    local CONTENT="$1"
-    local POINTER
-    local POINTERS
+    local Content="$1"
+    local Pointer
+    local Pointers
 
-    POINTERS="$(echo "${CONTENT}" | sed -n "s/.*__\\(.*\\)__.*/\\1/p")"
-    for POINTER in ${POINTERS}; do
-        printf %b " -e /__${POINTER}__/r/host/etc/cni/net.d/${POINTER}" \
-                  " -e /__${POINTER}__/d"
+    Pointers="$(echo "${Content}" | sed -n "s/.*__\\(.*\\)__.*/\\1/p")"
+    for Pointer in ${Pointers}; do
+        printf %b " -e /__${Pointer}__/r/host/etc/cni/net.d/${Pointer}" \
+                  " -e /__${Pointer}__/d"
     done
 }
 
 function difference {
-    local CONDITION="$1"
-    local DESIRED="$2"
-    local CURRENT="$3"
+    local Condition="$1"
+    local Desired="$2"
+    local Current="$3"
 
-    case "${CONDITION}" in
+    case "${Condition}" in
         added) local N=2 ;;
         removed) local N=1 ;;
     esac
 
-    local DIFF
-    DIFF="$(comm -"${N}3" <(echo "${DESIRED}" | xargs -n1 | sort) \
-                          <(echo "${CURRENT}" | xargs -n1 | sort) |
+    local Diff
+    Diff="$(comm -"${N}3" <(echo "${Desired}" | xargs -n1 | sort) \
+                          <(echo "${Current}" | xargs -n1 | sort) |
                  paste -sd" " -)"
 
-    case "${CONDITION}" in
-        added) local TARGET="${DESIRED}" ;;
-        removed) local TARGET="${CURRENT}" ;;
+    case "${Condition}" in
+        added) local Target="${Desired}" ;;
+        removed) local Target="${Current}" ;;
     esac
 
-    local RESULT=()
-    for ITEM in ${TARGET}; do
-        if [[ "${DIFF}" =~ ${ITEM} ]]; then
-            RESULT+=("${ITEM}")
+    local Result=()
+    for Item in ${Target}; do
+        if [[ "${Diff}" =~ ${Item} ]]; then
+            Result+=("${Item}")
         fi
     done
-    echo "${RESULT[@]}"
+    echo "${Result[@]}"
 }
 
 function items_reverse {
-    local ITEMS="$1"
-    echo "${ITEMS}" | xargs -n1 | tac | paste -sd" " -
+    local Items="$1"
+    echo "${Items}" | xargs -n1 | tac | paste -sd" " -
 }
 
 function pause {
@@ -215,12 +215,12 @@ function stop {
 }
 
 function usage {
-    >&2 echo "${USAGE}"
+    >&2 echo "${Usage}"
     exit 2
 }
 function unknown_option {
-    local OPTION="$1"
-    >&2 echo "Unknown option: ${OPTION%%=*}"
+    local Option="$1"
+    >&2 echo "Unknown option: ${Option%%=*}"
     exit 2
 }
 
