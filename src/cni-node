@@ -202,14 +202,6 @@ function items_reverse {
     echo "${ITEMS}" | xargs -n1 | tac | paste -sd" " -
 }
 
-function kubectl {
-    local SERVICE_ACCOUNT="/var/run/secrets/kubernetes.io/serviceaccount"
-    local CACERT="${SERVICE_ACCOUNT}/ca.crt"
-    local TOKEN; TOKEN="$(cat "${SERVICE_ACCOUNT}/token")"
-
-    /bin/kubectl --certificate-authority "${CACERT}" --token "${TOKEN}" "$@"
-}
-
 function pause {
     echo "Paused (waiting for SIGTERM or SIGINT to stop)..."
     trap stop SIGTERM SIGINT

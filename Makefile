@@ -1,5 +1,5 @@
 PROJECT = cni-node
-VERSION = 0.4.0
+VERSION = 0.4.1
 
 REGISTRY = quay.io
 USER = openvnf
