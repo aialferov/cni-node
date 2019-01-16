@@ -172,7 +172,7 @@ Use Multus CNI Node [Multus CNI Node Simple Manifest] to create the example
 workloads:
 
 ```
-$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-simple.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-simple.yaml
 ```
 
 After installation pods of the daemonset keep running (using the "--pause"
@@ -180,7 +180,7 @@ option) and can be used to apply configuration changes. For example change set
 of CNI plugins to install. To change configuration edit the ConfigMap:
 
 ```
-$ kubectl -n kube-system edit configmap multus-cni-node-configs
+$ kubectl -n kube-system edit configmap multus-cni-configs
 ```
 
 To apply the changes delete the "multus-cni-node" pods to make them restart:
@@ -200,7 +200,7 @@ implements ready to use solution.
 Uninstall the example workloads:
 
 ```
-$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-simple.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-simple.yaml
 ```
 
 ### Watching Changes
@@ -217,7 +217,7 @@ changes and perform automatic updates.
 
 This example is also based on [DaemonSet] describing four containers. Each
 container runs Kube Watch to follow the corresponding changes. Three of them
-watch for "multus-cni-node" configmap changes to update set of plugins, plugin
+watch for "multus-cni" configmap changes to update set of plugins, plugin
 configurations and manifests. The fourth one is watching for Calico config
 changes to update the depended Multus CNI config. Thus, restart of pods is not
 needed to apply the changes.
@@ -238,18 +238,18 @@ To deploy this example we use the following manifests:
 Deploy them in the same order:
 
 ```
-$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-config-rbac.yaml
-$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-config-rbac.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni.yaml
 ```
 
-You can try to edit the "multus-cni-node" ConfigMap or the "10-calico.conflist"
-file to see how the changes get automatically applied.
+You can try to edit the "multus-cni" ConfigMap or the "10-calico.conflist" file
+to see how the changes get automatically applied.
 
 Uninstall the example deployments in the reverse order:
 
 ```
-$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node.yaml
-$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-node-config-rbac.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-config-rbac.yaml
 ```
 
 See also:
@@ -285,9 +285,9 @@ limitations under the License.
 [ClusterRoleBinding]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
 
 [CNI Node Docker Image]: Dockerfile
-[Multus CNI Node Simple Manifest]: manifests/multus-cni-node-simple.yaml
-[Multus CNI Node Manifest]: manifests/multus-cni-node.yaml
-[Multus CNI Node Config/RBAC Manifest]: manifests/multus-cni-node-config-rbac.yaml
+[Multus CNI Node Simple Manifest]: manifests/multus-cni-simple.yaml
+[Multus CNI Node Manifest]: manifests/multus-cni.yaml
+[Multus CNI Node Config/RBAC Manifest]: manifests/multus-cni-config-rbac.yaml
 
 [Multus CNI Official →]: https://github.com/intel/multus-cni/blob/master/doc/quickstart.md
 [Multus CNI in Cennsonic →]: https://github.com/travelping/cennsonic/blob/master/docs/components/network.md#multus-cni

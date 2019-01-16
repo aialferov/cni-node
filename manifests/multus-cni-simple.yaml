@@ -1,7 +1,7 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: multus-cni-node-configs
+  name: multus-cni-configs
   namespace: kube-system
 data:
   05-multus-cni.conf: |
@@ -34,7 +34,7 @@ spec:
       - key: node.kubernetes.io/not-ready
         effect: NoSchedule
       containers:
-      - name: cni-node
+      - name: multus-cni-node
         image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
         command:
@@ -67,4 +67,4 @@ spec:
           path: /etc/cni/net.d
       - name: configs
         configMap:
-          name: multus-cni-node-configs
+          name: multus-cni-configs

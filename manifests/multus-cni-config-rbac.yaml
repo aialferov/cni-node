@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: multus-cni-node
+  name: multus-cni
   namespace: kube-system
 data:
   plugins: multus-cni,macvlan,ipvlan
@@ -11,7 +11,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: multus-cni-node-configs
+  name: multus-cni-configs
   namespace: kube-system
 data:
   05-multus-cni.conf: |
@@ -26,7 +26,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: multus-cni-node-manifests
+  name: multus-cni-manifests
   namespace: kube-system
 data:
   multus-cni-crd.yaml: |
@@ -46,13 +46,13 @@ data:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: multus-cni-node
+  name: multus-cni
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: multus-cni-node
+  name: multus-cni
 rules:
 - apiGroups: ["rbac.authorization.k8s.io"]
   resources: ["clusterroles", "clusterrolebindings"]
@@ -67,36 +67,36 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: multus-cni-node
+  name: multus-cni
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: multus-cni-node
+  name: multus-cni
 subjects:
 - kind: ServiceAccount
-  name: multus-cni-node
+  name: multus-cni
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: multus-cni-node
+  name: multus-cni
   namespace: kube-system
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
-  resourceNames: ["multus-cni-node"]
+  resourceNames: ["multus-cni"]
   verbs: ["get", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
-  name: multus-cni-node
+  name: multus-cni
   namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: multus-cni-node
+  name: multus-cni
 subjects:
 - kind: ServiceAccount
-  name: multus-cni-node
+  name: multus-cni

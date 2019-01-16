@@ -35,16 +35,16 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: multus-cni-node-scripts
+  name: multus-cni-scripts
   namespace: kube-system
 data:
-  cni-node-watch: |
+  kube-watch-configmap-multus-cni: |
     #!/bin/sh
-    exec kube-watch object configmap multus-cni-node \
+    exec kube-watch object configmap multus-cni \
                     --jsonpath="{.data.$1}" \
                     --handler="cni-node-apply-$1"
 
-  cni-node-watch-calico: |
+  kube-watch-10-calico: |
     #!/bin/sh
     exec kube-watch file /host/etc/cni/net.d/10-calico.conflist \
                     --handler=cni-node-apply-05-multus-cni
@@ -71,7 +71,7 @@ data:
 
   cni-node-read: |
     #!/bin/sh
-    kubectl get configmap multus-cni-node --output jsonpath="{.data.$1}"
+    kubectl get configmap multus-cni --output jsonpath="{.data.$1}"
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
@@ -96,7 +96,7 @@ spec:
       - name: plugins
         image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
-        command: ["cni-node-watch", "plugins"]
+        command: ["kube-watch-configmap-multus-cni", "plugins"]
         lifecycle:
           preStop:
             exec:
@@ -111,7 +111,7 @@ spec:
       - name: configs
         image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
-        command: ["cni-node-watch", "configs"]
+        command: ["kube-watch-configmap-multus-cni", "configs"]
         lifecycle:
           preStop:
             exec:
@@ -128,7 +128,7 @@ spec:
       - name: manifests
         image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
-        command: ["cni-node-watch", "manifests"]
+        command: ["kube-watch-configmap-multus-cni", "manifests"]
         lifecycle:
           preStop:
             exec:
@@ -148,7 +148,7 @@ spec:
       - name: calico
         image: quay.io/openvnf/cni-node:latest
         imagePullPolicy: Always
-        command: ["cni-node-watch-calico"]
+        command: ["kube-watch-10-calico"]
         volumeMounts:
         - name: cnicfg
           mountPath: /host/etc/cni/net.d
@@ -168,13 +168,13 @@ spec:
           path: /etc/cni/net.d
       - name: configs
         configMap:
-          name: multus-cni-node-configs
+          name: multus-cni-configs
       - name: manifests
         configMap:
-          name: multus-cni-node-manifests
+          name: multus-cni-manifests
       - name: scripts
         configMap:
-          name: multus-cni-node-scripts
+          name: multus-cni-scripts
           defaultMode: 0744
-      serviceAccount: multus-cni-node
-      serviceAccountName: multus-cni-node
+      serviceAccount: multus-cni
+      serviceAccountName: multus-cni
