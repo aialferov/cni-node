@@ -168,7 +168,7 @@ Kubernetes node and configure Multus CNI the way describing delegation to the
 existing Calico configuration, assuming "/etc/cni/net.d/10-calico.conflist"
 exists on each node.
 
-Use Multus CNI Node [Multus CNI Node Simple Manifest] to create the example
+Use Multus CNI Node [Multus CNI Simple Manifest] to create the example
 workloads:
 
 ```
@@ -232,24 +232,28 @@ might make undesired impact.
 
 To deploy this example we use the following manifests:
 
-* [Multus CNI Node Config/RBAC Manifest]
-* [Multus CNI Node Manifest]
+* [Multus CNI Config Manifest]
+* [Multus CNI RBAC Manifest]
+* [Multus CNI Manifest]
 
-Deploy them in the same order:
+The Multus CNI Manifest should be deployed last:
 
 ```
-$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-config-rbac.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-config.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-rbac.yaml
 $ kubectl apply -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni.yaml
 ```
 
 You can try to edit the "multus-cni" ConfigMap or the "10-calico.conflist" file
 to see how the changes get automatically applied.
 
-Uninstall the example deployments in the reverse order:
+During the example uninstallation the Multus CNI Manifest should be deleted
+first:
 
 ```
 $ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni.yaml
-$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-config-rbac.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-rbac.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/openvnf/cni-node/master/manifests/multus-cni-config.yaml
 ```
 
 See also:
@@ -285,9 +289,10 @@ limitations under the License.
 [ClusterRoleBinding]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
 
 [CNI Node Docker Image]: Dockerfile
-[Multus CNI Node Simple Manifest]: manifests/multus-cni-simple.yaml
-[Multus CNI Node Manifest]: manifests/multus-cni.yaml
-[Multus CNI Node Config/RBAC Manifest]: manifests/multus-cni-config-rbac.yaml
+[Multus CNI Simple Manifest]: manifests/multus-cni-simple.yaml
+[Multus CNI Manifest]: manifests/multus-cni.yaml
+[Multus CNI RBAC Manifest]: manifests/multus-cni-rbac.yaml
+[Multus CNI Config Manifest]: manifests/multus-cni-config.yaml
 
 [Multus CNI Official →]: https://github.com/intel/multus-cni/blob/master/doc/quickstart.md
 [Multus CNI in Cennsonic →]: https://github.com/travelping/cennsonic/blob/master/docs/components/network.md#multus-cni
