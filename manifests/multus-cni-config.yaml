@@ -22,6 +22,7 @@ data:
      "delegates": [
        __10-calico.conflist__
      ]
+    }
 ---
 apiVersion: v1
 kind: ConfigMap
