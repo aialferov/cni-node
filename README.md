@@ -303,7 +303,7 @@ limitations under the License.
 [Apache 2.0 Badge]: https://img.shields.io/badge/License-Apache%202.0-yellowgreen.svg?style=flat-square
 [GitHub Releases]: https://github.com/openvnf/cni-node/releases
 [GitHub Release Badge]: https://img.shields.io/github/release/openvnf/cni-node/all.svg?style=flat-square
-[Multus Badge]: https://img.shields.io/badge/Multus%20CNI-v3.2-green.svg?style=flat-square
-[Multus Release]: https://github.com/intel/multus-cni/releases/tag/v3.2
+[Multus Badge]: https://img.shields.io/badge/Multus%20CNI-v3.1-green.svg?style=flat-square
+[Multus Release]: https://github.com/intel/multus-cni/releases/tag/v3.1
 [CNI Plugins Badge]: https://img.shields.io/badge/CNI%20Plugins-v0.7.5-green.svg?style=flat-square
 [CNI Plugins Release]: https://github.com/containernetworking/plugins/releases/tag/v0.7.5

@@ -7,12 +7,12 @@ ARG GIT_SHA=
 
 LABEL PROJECT="${PROJECT}"
 
-ARG MULTUS_CNI_VERSION=3.2
+ARG MULTUS_CNI_VERSION=v3.1
 ARG CNI_PLUGINS_VERSION=v0.7.5
 
 ARG MULTUS_CNI_URL=\
 https://github.com/intel/multus-cni/releases/download/\
-v${MULTUS_CNI_VERSION}/multus-cni_${MULTUS_CNI_VERSION}_linux_amd64.tar.gz
+${MULTUS_CNI_VERSION}/multus-cni_${MULTUS_CNI_VERSION}_linux_amd64.tar.gz
 
 ARG CNI_PLUGINS_URL=\
 https://github.com/containernetworking/plugins/releases/download/\
