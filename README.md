@@ -194,8 +194,8 @@ configuration uninstallation. See the "lifecycle" section of pod container in
 the manifest.
 
 Please note, this example does not create ready to use Multus CNI solution. It
-just installs plugins binaries and configuration. The [Watching Changes] example
-implements ready to use solution.
+just installs plugins binaries and configuration. The [Watching Changes](#watching-changes)
+example implements ready to use solution.
 
 Uninstall the example workloads:
 
@@ -227,8 +227,8 @@ create or delete manifests, and Kube Watch requires it to watch the ConfigMap.
 For the same purpose we create some [RBAC] objects.
 
 Before deploying the example, please make sure you have uninstalled the [Simple
-Example] related workloads if you played with it. It uses the saming naming and
-might make undesired impact.
+Example](#simple-example) related workloads if you played with it. It uses the
+same naming and might make undesired impact.
 
 To deploy this example we use the following manifests:
 
